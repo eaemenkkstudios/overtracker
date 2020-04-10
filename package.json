@@ -13,8 +13,9 @@
   },
   "license": "ISC",
   "dependencies": {
+    "celebrate": "^12.0.1",
     "express": "^4.17.1",
-    "firebase": "^7.13.2",
+    "firebase-admin": "^8.10.0",
     "oversmash": "^1.6.0"
   },
   "devDependencies": {

@@ -5,7 +5,7 @@ const routes = express.Router();
 
 const PlayerController = require('./controllers/PlayerController');
 
-routes.post('/add/:battleTag', celebrate({
+routes.post('/:battleTag', celebrate({
   [Segments.HEADERS]: Joi.object({
     authorization: Joi.string().required(),
   }).unknown(),
@@ -17,12 +17,19 @@ routes.post('/add/:battleTag', celebrate({
   }),
 }), PlayerController.followPlayer);
 
-routes.get('/tag/:battleTag', celebrate({
+routes.get('/:battleTag', celebrate({
+  [Segments.HEADERS]: Joi.object({
+    authorization: Joi.string().required(),
+  }).unknown(),
   [Segments.PARAMS]: Joi.object().keys({
     battleTag: Joi.string().pattern(/^\D\w{2,12}-\d{4,5}$/u).required(),
   }),
 }), PlayerController.getStats);
 
-routes.get('/outdated', PlayerController.getOutdatedPlayers);
+routes.get('/', celebrate({
+  [Segments.HEADERS]: Joi.object({
+    authorization: Joi.string().required(),
+  }).unknown(),
+}), PlayerController.getFollowing);
 
 module.exports = routes;

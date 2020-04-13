@@ -103,5 +103,5 @@ dist
 # TernJS port file
 .tern-port
 
-config.json
-serviceAccountKey.json
+config.dev.js
+serviceAccountKey.dev.js

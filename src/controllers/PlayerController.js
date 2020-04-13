@@ -1,8 +1,8 @@
 const ow = require('oversmash').default();
 const firebase = require('firebase-admin');
-const firebaseConfig = require('../config.json');
+const firebaseConfig = require('../config/config');
 
-const serviceAccount = require('../serviceAccountKey.json');
+const serviceAccount = require('../config/serviceAccountKey');
 
 firebase.initializeApp({
   credential: firebase.credential.cert(serviceAccount),

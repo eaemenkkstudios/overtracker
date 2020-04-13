@@ -17,4 +17,8 @@ routes.post('/add/:battleTag', celebrate({
   }),
 }), PlayerController.followPlayer);
 
+routes.get('/tag/:battleTag', PlayerController.getStats);
+
+routes.get('/outdated', PlayerController.getOutdatedPlayers);
+
 module.exports = routes;

@@ -17,7 +17,11 @@ routes.post('/add/:battleTag', celebrate({
   }),
 }), PlayerController.followPlayer);
 
-routes.get('/tag/:battleTag', PlayerController.getStats);
+routes.get('/tag/:battleTag', celebrate({
+  [Segments.PARAMS]: Joi.object().keys({
+    battleTag: Joi.string().pattern(/^\D\w{2,12}-\d{4,5}$/u).required(),
+  }),
+}), PlayerController.getStats);
 
 routes.get('/outdated', PlayerController.getOutdatedPlayers);
 

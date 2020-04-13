@@ -13,7 +13,6 @@ setInterval(async () => {
   const outdatedPlayers = await PlayerController.getOutdatedPlayers();
   outdatedPlayers.forEach(async (player) => PlayerController
     .updatePlayer(player.tag, player.platform));
-  console.log('eaemenkk');
-}, 10000);
+}, 86400000);
 
 app.listen(process.env.ENV_PORT || 8080);

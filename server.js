@@ -1,7 +1,7 @@
 const express = require('express');
 const { errors } = require('celebrate');
-const routes = require('./routes');
-const PlayerController = require('./controllers/PlayerController');
+const routes = require('./src/routes');
+const PlayerController = require('./src/controllers/PlayerController');
 
 const app = express();
 

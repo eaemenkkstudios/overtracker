@@ -180,18 +180,18 @@ module.exports = {
   /**
    * Gets all of the players that haven't been updated in more than 12hrs
    * @async
-   * @returns {[{
-   *  battleTag: string
+   * @returns {Promise<[{
+   *  tag: string
    *  platform: string
-   * }]} Array of outdated players
+   * }]>} Array of outdated players
    */
   async getOutdatedPlayers() {
     const currentTime = new Date().getTime();
     const outdatedPlayers = [];
-    firebase
+    return firebase
       .database()
       .ref('battletags')
-      .on('value', (snapshot) => {
+      .once('value', (snapshot) => {
         if (snapshot.val()) {
           Object.keys(snapshot.val()).forEach((player) => {
             if (snapshot.val()[player].lastUpdate) {
@@ -205,8 +205,8 @@ module.exports = {
             }
           });
         }
-        return outdatedPlayers;
-      });
+      })
+      .then(() => outdatedPlayers);
   },
 
   /**
@@ -223,12 +223,13 @@ module.exports = {
       .orderByChild('tag')
       .equalTo(battleTag)
       .once('value', async (snapshot) => {
-        const lastScore = Object.keys(snapshot.val())[0].scores.pop();
-        const hasChanged = (Object.is(lastScore.games, newScore.games)
-        && Object.is(lastScore.rank, newScore.rank));
+        const lastScore = snapshot.val()[Object.keys(snapshot.val())[0]].scores.pop();
+        const hasChanged = !(JSON.stringify(lastScore.games) === JSON.stringify(newScore.games)
+        && JSON.stringify(lastScore.rank) === JSON.stringify(newScore.rank));
         const newStats = {
           [Object.keys(snapshot.val())[0]]: {
             tag: battleTag,
+            platform,
             lastUpdate: newScore.date,
             scores: hasChanged ? [
               ...snapshot.val()[Object.keys(snapshot.val())[0]].scores,

@@ -6,9 +6,9 @@ const PlayerController = require('./src/controllers/PlayerController');
 const app = express();
 
 async function updateOutdatedPlayers() {
-  const outdatedPlayers = await PlayerController.getOutdatedPlayers();
-  outdatedPlayers.forEach(async (player) => PlayerController
-    .updatePlayer(player.tag, player.platform));
+  const outdatedPlayers = PlayerController.getOutdatedPlayers();
+  outdatedPlayers.then((players) => players.forEach((player) => PlayerController
+    .updatePlayer(player.tag, player.platform)));
 }
 
 app.use(express.json());

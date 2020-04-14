@@ -178,7 +178,7 @@ module.exports = {
   },
 
   /**
-   * Gets all of the players that haven't been updated in more than 24hrs
+   * Gets all of the players that haven't been updated in more than 12hrs
    * @async
    * @returns {[{
    *  battleTag: string
@@ -188,10 +188,10 @@ module.exports = {
   async getOutdatedPlayers() {
     const currentTime = new Date().getTime();
     const outdatedPlayers = [];
-    await firebase
+    firebase
       .database()
       .ref('battletags')
-      .on('value', async (snapshot) => {
+      .on('value', (snapshot) => {
         if (snapshot.val()) {
           Object.keys(snapshot.val()).forEach((player) => {
             if (snapshot.val()[player].lastUpdate) {
@@ -205,8 +205,8 @@ module.exports = {
             }
           });
         }
+        return outdatedPlayers;
       });
-    return outdatedPlayers;
   },
 
   /**

@@ -1,6 +1,7 @@
 const ow = require('oversmash').default();
 const firebase = require('firebase-admin');
 const firebaseConfig = require('../config/config');
+const { fkey, fval } = require('../util');
 
 const serviceAccount = require('../config/serviceAccountKey');
 
@@ -11,7 +12,7 @@ firebase.initializeApp({
 /**
  * Creates the player's score object
  * @async
- * @param {String} battleTag Player's battletag
+ * @param {String} tag Player's battletag
  * @param {String} platform Player's platform
  * @returns {{
  *  date: string
@@ -28,9 +29,9 @@ firebase.initializeApp({
  *  }
  * }} Score object
  */
-async function makeScore(battleTag, platform) {
+async function makeScore(tag, platform) {
   const final = { date: new Date().getTime(), endorsement: 0, games: {} };
-  const player = await ow.playerStats(battleTag, platform);
+  const player = await ow.playerStats(tag, platform);
   final.endorsement = player.stats.endorsement_level;
   if (player.stats.competitive.all) {
     final.games.played = player.stats.competitive.all.game.games_played || 0;
@@ -141,13 +142,13 @@ function makeFriendlyScore(score) {
 /**
  * Registers the player in the database
  * @async
- * @param {string} battleTag Player's battletag
+ * @param {string} tag Player's battletag
  * @param {string} platform Player's platform
  * @returns {*} The database referece or `undefined`
  */
-async function registerBattleTag(battleTag, platform) {
+async function registerBattleTag(tag, platform) {
   platform = platform || 'pc';
-  const player = await ow.player(battleTag, platform);
+  const player = await ow.player(tag, platform);
   if (!player.accounts.length) return undefined;
   let platformIndex = -1;
   if (platform) {
@@ -160,9 +161,9 @@ async function registerBattleTag(battleTag, platform) {
     platformIndex = 0;
   }
   if (platformIndex < 0) return undefined;
-  const playerScore = await makeScore(battleTag, platform);
+  const playerScore = await makeScore(tag, platform);
   const finalStats = {
-    tag: battleTag,
+    tag,
     platform,
     lastUpdate: playerScore.date,
     scores: [playerScore],
@@ -212,29 +213,29 @@ module.exports = {
   /**
  * Updates the score of the player
  * @async
- * @param {String} battleTag Player's battletag
+ * @param {String} tag Player's battletag
  * @param {String} platform Player's platform
  */
-  async updatePlayer(battleTag, platform) {
-    const newScore = await makeScore(battleTag, platform);
+  async updatePlayer(tag, platform) {
+    const newScore = await makeScore(tag, platform);
     await firebase
       .database()
       .ref('battletags')
       .orderByChild('tag')
-      .equalTo(battleTag)
+      .equalTo(tag)
       .once('value', async (snapshot) => {
-        const lastScore = snapshot.val()[Object.keys(snapshot.val())[0]].scores.pop();
+        const lastScore = fkey(snapshot.val()).scores.pop();
         const hasChanged = !(JSON.stringify(lastScore.games) === JSON.stringify(newScore.games)
         && JSON.stringify(lastScore.rank) === JSON.stringify(newScore.rank));
         const newStats = {
-          [Object.keys(snapshot.val())[0]]: {
-            tag: battleTag,
+          [fval(snapshot.val())]: {
+            tag,
             platform,
             lastUpdate: newScore.date,
             scores: hasChanged ? [
-              ...snapshot.val()[Object.keys(snapshot.val())[0]].scores,
+              ...fkey(snapshot.val()).scores,
               newScore,
-            ] : [...snapshot.val()[Object.keys(snapshot.val())[0]].scores],
+            ] : [...fkey(snapshot.val()).scores],
           },
         };
         await snapshot.ref.update(newStats);
@@ -259,39 +260,44 @@ module.exports = {
 
   async getStats(req, res) {
     const token = req.headers.authorization;
-    const battleTag = req.params.battleTag.replace(/-/g, '#');
-    const { platform } = req.query;
-    const newScore = await makeScore(battleTag, platform);
-    const stats = { scores: [], now: makeFriendlyScore(newScore) };
+    const { tagId } = req.params;
     firebase.auth().verifyIdToken(token)
       .then(async () => {
         await firebase
           .database()
           .ref('battletags')
-          .orderByChild('tag')
-          .equalTo(battleTag)
+          .orderByKey()
+          .equalTo(tagId)
           .once('value', async (snapshot) => {
-            snapshot.val()[Object.keys(snapshot.val())[0]].scores.forEach((score) => {
+            if (!snapshot.val()) return res.status(400).send();
+            const { tag, platform } = fkey(snapshot.val());
+            const newScore = await makeScore(tag, platform);
+            const stats = {
+              tag,
+              platform,
+              scores: [],
+              now: makeFriendlyScore(newScore),
+            };
+            fkey(snapshot.val()).scores.forEach((score) => {
               stats.scores.push(makeFriendlyScore(score));
             });
+            res.status(200).json(stats);
           });
-        res.status(200).json(stats);
       })
       .catch(() => res.status(401).send());
   },
 
   async followPlayer(req, res) {
     const token = req.headers.authorization;
-    const battleTag = req.params.battleTag.replace(/-/g, '#');
-    const { platform } = req.query;
+    const { tag, platform } = req.body;
     firebase.auth().verifyIdToken(token)
       .then(async (userData) => {
         firebase.database().ref('battletags')
           .orderByChild('tag')
-          .equalTo(battleTag)
+          .equalTo(tag)
           .once('value', async (snapshot) => {
             if (snapshot.val()) {
-              const playerId = Object.keys(snapshot.val())[0];
+              const playerId = fval(snapshot.val());
               await firebase.database().ref('accounts')
                 .child(userData.uid)
                 .child('following')
@@ -307,7 +313,7 @@ module.exports = {
                   return res.status(200).send();
                 });
             } else {
-              const newPlayer = await registerBattleTag(battleTag, platform);
+              const newPlayer = await registerBattleTag(tag, platform);
               if (!newPlayer) return res.status(400).send();
               await firebase
                 .database()

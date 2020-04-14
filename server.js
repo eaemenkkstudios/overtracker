@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const { errors } = require('celebrate');
 const routes = require('./src/routes');
 const PlayerController = require('./src/controllers/PlayerController');
@@ -12,6 +13,7 @@ async function updateOutdatedPlayers() {
 }
 
 app.use(express.json());
+app.use(cors());
 app.use(routes);
 app.use(errors());
 

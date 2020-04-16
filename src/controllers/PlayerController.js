@@ -211,11 +211,11 @@ module.exports = {
   },
 
   /**
- * Updates the score of the player
- * @async
- * @param {String} tag Player's battletag
- * @param {String} platform Player's platform
- */
+   * Updates the score of the player
+   * @async
+   * @param {String} tag Player's battletag
+   * @param {String} platform Player's platform
+   */
   async updatePlayer(tag, platform) {
     const newScore = await makeScore(tag, platform);
     await firebase
@@ -242,6 +242,12 @@ module.exports = {
       });
   },
 
+  /**
+   * Gets following players
+   * @async
+   * @param {String} req HTTP request data
+   * @param {String} res HTTP response data
+   */
   async getFollowing(req, res) {
     const token = req.headers.authorization;
     firebase.auth().verifyIdToken(token)
@@ -276,6 +282,12 @@ module.exports = {
       .catch(() => res.status(401).send());
   },
 
+  /**
+   * Gets detailed stats for player
+   * @async
+   * @param {String} req HTTP request data
+   * @param {String} res HTTP response data
+   */
   async getStats(req, res) {
     const token = req.headers.authorization;
     const { tagId } = req.params;
@@ -305,6 +317,12 @@ module.exports = {
       .catch(() => res.status(401).send());
   },
 
+  /**
+   * Follows specific player
+   * @async
+   * @param {String} req HTTP request data
+   * @param {String} res HTTP response data
+   */
   async followPlayer(req, res) {
     const token = req.headers.authorization;
     const { tag, platform } = req.body;

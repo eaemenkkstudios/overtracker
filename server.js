@@ -1,8 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const { errors } = require('celebrate');
+const oversmash = require('oversmash').default();
+const firebase = require('firebase-admin');
+const firebaseConfig = require('./src/config/config');
+const serviceAccount = require('./src/config/serviceAccountKey');
 const routes = require('./src/routes');
-const PlayerController = require('./src/controllers/PlayerController');
+
+firebase.initializeApp({
+  credential: firebase.credential.cert(serviceAccount),
+  databaseURL: firebaseConfig.databaseURL,
+});
+
+const overwatch = require('./src/overwatch')(oversmash, firebase);
+const PlayerController = require('./src/controllers/PlayerController')(overwatch, oversmash, firebase);
 
 const app = express();
 

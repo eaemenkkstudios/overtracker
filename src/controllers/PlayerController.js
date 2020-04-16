@@ -1,4 +1,5 @@
-const ow = require('oversmash').default();
+const oversmash = require('oversmash').default();
+const overwatch = require('../overwatch');
 const firebase = require('firebase-admin');
 const firebaseConfig = require('../config/config');
 const { fkey, fval } = require('../util');
@@ -9,29 +10,83 @@ firebase.initializeApp({
   credential: firebase.credential.cert(serviceAccount),
   databaseURL: firebaseConfig.databaseURL,
 });
+
+const score = {
+  endorsement: overwatch.player.ENDORSEMENT,
+  games: {
+    played: overwatch.player.MATCHES.PLAYED.UPDATED,
+    won: overwatch.player.MATCHES.WON.UPDATED
+  },
+  main: overwatch.player.MAIN.UPDATED
+}
+
+const cards = {
+  MATCH_UPDATE: {
+    type: 'match_update',
+    sr: {
+      previous: overwatch.player.SR.MAIN.PREVIOUS,
+      current: overwatch.player.SR.MAIN.CURRENT
+    }
+  },
+  MAIN_UPDATE: {
+    type: 'main_update',
+    time: overwatch.player.MAIN.TIME,
+    main: {
+      previous: overwatch.player.MAIN.PREVIOUS,
+      current: overwatch.player.MAIN.CURRENT
+    }
+  },
+  ENDORSEMENT_UPDATE: {
+    type: 'endorsement_update',
+    endorsement: {
+      previous: overwatch.player.ENDORSEMENT.PREVIOUS,
+      current: overwatch.player.ENDORSEMENT.CURRENT
+    }
+  },
+  HIGHLIGHT: {
+    type: 'highlight',
+    sr: {
+      current: overwatch.player.SR.HIGHEST.CURRENT,
+      state: overwatch.player.SR.HIGHEST.SLOPE
+    },
+    win_rate: {
+      current: overwatch.player.WIN_RATE.CURRENT,
+      state: overwatch.player.WIN_RATE.SLOPE
+    },
+    main: {
+      current: overwatch.player.MAIN.CURRENT,
+      time: overwatch.player.MAIN.TIME
+    }
+  },
+};
+
 /**
  * Creates the player's score object
  * @async
  * @param {String} tag Player's battletag
  * @param {String} platform Player's platform
  * @returns {{
- *  date: string
- *  endorsment: number
- *  main: string
+ *  date: String
+ *  endorsment: Number
+ *  main: String
  *  rank: {
- *    damage: number
- *    support: number
- *    tank: number
+ *    damage: Number
+ *    support: Number
+ *    tank: Number
  *  }
  *  games: {
- *    played: number
- *    won: number
+ *    played: Number
+ *    won: Number
  *  }
  * }} Score object
  */
 async function makeScore(tag, platform) {
-  const final = { date: new Date().getTime(), endorsement: 0, games: {} };
-  const player = await ow.playerStats(tag, platform);
+  const final = {
+    date: new Date().getTime(),
+    endorsement: 0,
+    games: {}
+  };
+  const player = await oversmash.playerStats(tag, platform);
   final.endorsement = player.stats.endorsement_level;
   if (player.stats.competitive.all) {
     final.games.played = player.stats.competitive.all.game.games_played || 0;
@@ -60,77 +115,58 @@ async function makeScore(tag, platform) {
 }
 
 /**
- * Gets the image URL of the player's rank
- * @param {number} rank Player's SR
- * @returns {string} Image URL
+ * Creates a card information
+ * @async
+ * @param {{ id: String, tag: String, platform: String }} player Player information
+ * @returns {any} Card object
  */
-function getRankImage(rank) {
-  const baseUrl = 'https://d1u1mce87gyfbn.cloudfront.net/game/rank-icons/rank-';
-  const suffix = 'Tier.png';
-  let tier = '';
-  if (rank < 1) return undefined;
-  if (rank < 1500) {
-    tier = 'Bronze';
-  } else if (rank < 2000) {
-    tier = 'Silver';
-  } else if (rank < 2500) {
-    tier = 'Gold';
-  } else if (rank < 3000) {
-    tier = 'Platinum';
-  } else if (rank < 3500) {
-    tier = 'Diamond';
-  } else if (rank < 4000) {
-    tier = 'Master';
-  } else {
-    tier = 'Grandmaster';
-  }
+async function makeCard(player, sheet) {
 
-  return baseUrl + tier + suffix;
 }
 
 /**
  * Adds the rank image url to each rank
  * @param {{
- *  date: string
- *  endorsment: number
- *  main: string
+ *  date: String
+ *  endorsment: Number
+ *  main: String
  *  rank: {
- *    damage: number
- *    support: number
- *    tank: number
+ *    damage: Number
+ *    support: Number
+ *    tank: Number
  *  }
  *  games: {
- *    played: number
- *    won: number
+ *    played: Number
+ *    won: Number
  *  }
  * }} score Player's score object
  * @returns {{
  *  rank: {
  *    damage: {
- *      sr: number
- *      img: string
+ *      sr: Number
+ *      img: String
  *    }
  *    support: {
- *      sr: number
- *      img: string
+ *      sr: Number
+ *      img: String
  *    }
  *    tank: {
- *      sr: number
- *      img: string
+ *      sr: Number
+ *      img: String
  *    }
  *  }
- *  date: string
- *  endorsment: number
- *  main: string
+ *  date: String
+ *  endorsment: Number
+ *  main: String
  *  games: {
- *    played: number
- *    won: number
+ *    played: Number
+ *    won: Number
  *  }
  * }} Friendly Score Object
  */
 function makeFriendlyScore(score) {
   Object.keys(score.rank).forEach((rank) => {
-    const img = getRankImage(score.rank[rank]);
+    const img = overwatch.getRankImageURL(score.rank[rank]);
     score.rank[rank] = {
       sr: score.rank[rank],
       img,
@@ -142,13 +178,13 @@ function makeFriendlyScore(score) {
 /**
  * Registers the player in the database
  * @async
- * @param {string} tag Player's battletag
- * @param {string} platform Player's platform
+ * @param {String} tag Player's battletag
+ * @param {String} platform Player's platform
  * @returns {*} The database referece or `undefined`
  */
 async function registerBattleTag(tag, platform) {
   platform = platform || 'pc';
-  const player = await ow.player(tag, platform);
+  const player = await oversmash.player(tag, platform);
   if (!player.accounts.length) return undefined;
   let platformIndex = -1;
   if (platform) {
@@ -172,18 +208,12 @@ async function registerBattleTag(tag, platform) {
 }
 
 module.exports = {
-  friendlyPlatforms: {
-    pc: 'PC',
-    psn: 'PlayStation Network',
-    xbl: 'Xbox Live',
-  },
-
   /**
    * Gets all of the players that haven't been updated in more than 12hrs
    * @async
    * @returns {Promise<[{
-   *  tag: string
-   *  platform: string
+   *  tag: String
+   *  platform: String
    * }]>} Array of outdated players
    */
   async getOutdatedPlayers() {
@@ -270,7 +300,47 @@ module.exports = {
                   if (tagIds.indexOf(player) !== -1) {
                     players.push({
                       id: player,
-                      platform: playersInfo[player].platform,
+                      platform: friendlyPlatforms[(playersInfo[player].platform)],
+                      tag: playersInfo[player].tag,
+                    });
+                  }
+                });
+                res.status(200).json(players);
+              });
+          });
+      })
+      .catch(() => res.status(401).send());
+  },
+
+  /**
+   * Gets following players
+   * @async
+   * @param {String} req HTTP request data
+   * @param {String} res HTTP response data
+   */
+  async getFeed(req, res) {
+    const token = req.headers.authorization;
+    firebase.auth().verifyIdToken(token)
+      .then(async (userData) => {
+        firebase
+          .database()
+          .ref('accounts')
+          .child(userData.uid)
+          .child('following')
+          .once('value', (snapshot) => {
+            firebase
+              .database()
+              .ref('battletags')
+              .once('value', (snap) => {
+                const followedPlayers = snapshot.val();
+                const playersInfo = snap.val();
+                const tagIds = Object.keys(followedPlayers).map((id) => followedPlayers[id]);
+                const players = [];
+                Object.keys(playersInfo).forEach((player) => {
+                  if (tagIds.indexOf(player) !== -1) {
+                    players.push({
+                      id: player,
+                      platform: this.friendlyPlatforms[(playersInfo[player].platform)],
                       tag: playersInfo[player].tag,
                     });
                   }

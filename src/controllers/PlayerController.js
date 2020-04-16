@@ -246,13 +246,31 @@ module.exports = {
     const token = req.headers.authorization;
     firebase.auth().verifyIdToken(token)
       .then(async (userData) => {
-        await firebase
+        firebase
           .database()
           .ref('accounts')
           .child(userData.uid)
           .child('following')
-          .once('value', async (snapshot) => {
-            res.status(200).json(snapshot.val());
+          .once('value', (snapshot) => {
+            firebase
+              .database()
+              .ref('battletags')
+              .once('value', (snap) => {
+                const followedPlayers = snapshot.val();
+                const playersInfo = snap.val();
+                const tagIds = Object.keys(followedPlayers).map((id) => followedPlayers[id]);
+                const players = [];
+                Object.keys(playersInfo).forEach((player) => {
+                  if (tagIds.indexOf(player) !== -1) {
+                    players.push({
+                      id: player,
+                      platform: playersInfo[player].platform,
+                      tag: playersInfo[player].tag,
+                    });
+                  }
+                });
+                res.status(200).json(players);
+              });
           });
       })
       .catch(() => res.status(401).send());

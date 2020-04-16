@@ -105,3 +105,4 @@ dist
 
 config.dev.js
 serviceAccountKey.dev.js
+serviceAccountKey.json

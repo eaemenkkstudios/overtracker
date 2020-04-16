@@ -1,14 +1,22 @@
 
+const oversmash = require('oversmash').default();
+const firebase = require('firebase-admin');
+
 const { isObject, fkey } = require('./util');
 
-module.exports = (oversmash, firebase) => {
-  const module = {};
+const classes = {
+  DAMAGE: 'damage',
+  SUPPORT: 'support',
+  TANK: 'tank',
+};
 
-  const classes = {
-    DAMAGE: 'damage',
-    SUPPORT: 'support',
-    TANK: 'tank',
-  };
+
+const sources = {
+  FIREBASE: 'firebase',
+  OVERSMASH: 'oversmash',
+};
+
+module.exports = {
 
   /* WIP
   const heroes = {
@@ -18,11 +26,6 @@ module.exports = (oversmash, firebase) => {
   };
   */
 
-  // Fontes de dados
-  const sources = {
-    FIREBASE: 'firebase',
-    OVERSMASH: 'oversmash',
-  };
 
   /* WIP
    * Verifica se a pesquisa necessita apenas do firebase,
@@ -50,10 +53,10 @@ module.exports = (oversmash, firebase) => {
 
   // Transforma uma request de informação na informação requisitada.
   // Exemplo: player.SR.SUPPORT.CURRENT -> 2468
-  function stringToInfo(obj, oversmashStats, firebaseStats) {
+  stringToInfo(obj, oversmashStats, firebaseStats) {
     Object.keys(obj).forEach((key) => {
       if (isObject(obj[key])) {
-        stringToInfo(obj[key], oversmashStats, firebaseStats);
+        this.stringToInfo(obj[key], oversmashStats, firebaseStats);
       } else if (typeof obj[key] === 'string') {
         const args = (String)(obj[key]).split('_');
         switch (args[args.length - 1]) {
@@ -198,9 +201,9 @@ module.exports = (oversmash, firebase) => {
         }
       }
     });
-  }
+  },
 
-  module.player = {
+  player: {
     ENDORSEMENT: {
       PREVIOUS: `endorsement_previous_${sources.FIREBASE}`,
       CURRENT: `endorsement_current_${sources.FIREBASE}`,
@@ -270,19 +273,19 @@ module.exports = (oversmash, firebase) => {
       PLATFORM: `platform_${sources.FIREBASE}`,
     },
     */
-  };
+  },
 
-  module.friendlyPlatforms = {
+  friendlyPlatforms: {
     pc: 'PC',
     psn: 'PlayStation Network',
     xbl: 'Xbox Live',
-  };
+  },
   /**
    * Gets the image URL of the player's rank
    * @param {Number} rank Player's SR
    * @returns {String} Image URL
    */
-  module.getRankImageURL = (rank) => {
+  getRankImageURL(rank) {
     const baseUrl = 'https://d1u1mce87gyfbn.cloudfront.net/game/rank-icons/rank-';
     const suffix = 'Tier.png';
     let tier = '';
@@ -303,8 +306,9 @@ module.exports = (oversmash, firebase) => {
       tier = 'Grandmaster';
     }
     return baseUrl + tier + suffix;
-  };
-  module.fillObject = async (tag, platform, obj) => {
+  },
+
+  async fillObject(tag, platform, obj) {
     // const checkings = getChecking(obj); Checa se o processo precisa do oversmash
     const stats = await oversmash.playerStats(tag, platform);
     await firebase
@@ -314,10 +318,8 @@ module.exports = (oversmash, firebase) => {
       .equalTo(tag) // ADICIONAR VERIFICAÇÃO DE PLATAFORMA!!!
       .once('value', async (snapshot) => {
         if (snapshot.val()) {
-          stringToInfo(obj, stats, fkey(snapshot.val()));
+          this.stringToInfo(obj, stats, fkey(snapshot.val()));
         }
       });
-  };
-
-  return module;
+  },
 };

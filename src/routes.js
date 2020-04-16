@@ -3,6 +3,7 @@ const { celebrate, Segments, Joi } = require('celebrate');
 
 const routes = express.Router();
 
+const overwatch = require('./overwatch');
 const PlayerController = require('./controllers/PlayerController');
 
 routes.post('/create', celebrate({
@@ -11,7 +12,7 @@ routes.post('/create', celebrate({
   }).unknown(),
   [Segments.BODY]: Joi.object().keys({
     tag: Joi.string().pattern(/^\D\w{2,12}#\d{4,5}$/u).required(),
-    platform: Joi.string().valid(...Object.keys(PlayerController.friendlyPlatforms)).optional(),
+    platform: Joi.string().valid(...Object.keys(overwatch.friendlyPlatforms)).optional(),
   }),
 }), PlayerController.followPlayer);
 

@@ -6,7 +6,7 @@ const routes = express.Router();
 const overwatch = require('./overwatch');
 const PlayerController = require('./controllers/PlayerController');
 
-routes.post('/create', celebrate({
+routes.post('/follow', celebrate({
   [Segments.HEADERS]: Joi.object({
     authorization: Joi.string().required(),
   }).unknown(),
@@ -30,5 +30,11 @@ routes.get('/following', celebrate({
     authorization: Joi.string().required(),
   }).unknown(),
 }), PlayerController.getFollowing);
+
+routes.get('/feed', celebrate({
+  [Segments.HEADERS]: Joi.object({
+    authorization: Joi.string().optional(),
+  }).unknown(),
+}), PlayerController.getFeed);
 
 module.exports = routes;

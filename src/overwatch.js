@@ -2,54 +2,61 @@
 const oversmash = require('oversmash').default();
 const firebase = require('firebase-admin');
 
-const { isObject, fkey } = require('./util');
+const { isObject, isEmpty, fkey } = require('./util');
 
-const classes = {
-  DAMAGE: 'damage',
-  SUPPORT: 'support',
-  TANK: 'tank',
+const slope = {
+  DECREASING: 'decreasing',
+  TIED: 'tied',
+  INCREASING: 'increasing',
 };
-
 
 const sources = {
   FIREBASE: 'firebase',
   OVERSMASH: 'oversmash',
 };
 
+const roles = {
+  DAMAGE: 'damage',
+  SUPPORT: 'support',
+  TANK: 'tank',
+};
+
+const heroes = {
+  ana: roles.SUPPORT,
+  ashe: roles.DAMAGE,
+  baptiste: roles.SUPPORT,
+  bastion: roles.DAMAGE,
+  brigitte: roles.SUPPORT,
+  dva: roles.TANK,
+  doomfist: roles.DAMAGE,
+  echo: roles.DAMAGE,
+  genji: roles.DAMAGE,
+  hanzo: roles.DAMAGE,
+  junkrat: roles.DAMAGE,
+  lucio: roles.SUPPORT,
+  mccree: roles.DAMAGE,
+  mei: roles.DAMAGE,
+  mercy: roles.SUPPORT,
+  moira: roles.SUPPORT,
+  orisa: roles.TANK,
+  pharah: roles.DAMAGE,
+  reaper: roles.DAMAGE,
+  reinhardt: roles.TANK,
+  roadhog: roles.TANK,
+  sigma: roles.TANK,
+  soldier76: roles.DAMAGE,
+  sombra: roles.DAMAGE,
+  symmetra: roles.DAMAGE,
+  torbjorn: roles.DAMAGE,
+  tracer: roles.DAMAGE,
+  widowmaker: roles.DAMAGE,
+  winston: roles.TANK,
+  wreckingball: roles.TANK,
+  zarya: roles.TANK,
+  zenyatta: roles.SUPPORT,
+};
+
 module.exports = {
-
-  /* WIP
-  const heroes = {
-    ana: classes.SUPPORT,
-    ashe: classes.DAMAGE,
-    dva: classes.TANK,
-  };
-  */
-
-
-  /* WIP
-   * Verifica se a pesquisa necessita apenas do firebase,
-   * oversmash ou dos dois.
-  function getChecking(obj) {
-    const final = {};
-    let aux;
-    Object.keys(sources).forEach((key) => {
-      final[key] = false;
-    });
-    Object.values(obj).forEach((val) => {
-      if (isObject(val)) {
-        aux = getChecking(val);
-      } else if (typeof val === 'string') {
-        const args = (String)(val).split('_');
-        final[args[args.length - 1]] = true;
-      }
-    });
-    Object.keys(final).forEach((key) => {
-      final[key] = final[key] || aux[key];
-    });
-    return final;
-  }
-  */
 
   // Transforma uma request de informação na informação requisitada.
   // Exemplo: player.SR.SUPPORT.CURRENT -> 2468
@@ -63,30 +70,196 @@ module.exports = {
           case sources.FIREBASE:
             switch (args[0]) {
               case 'endorsement':
-                obj[key] = firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                  .endorsement;
+                switch (args[1]) {
+                  case 'previous':
+                    obj[key] = firebaseStats.scores[firebaseStats.length - 1]
+                      .endorsement;
+                    break;
+                  case 'current':
+                    obj[key] = firebaseStats.current.endorsement;
+                    break;
+                  default:
+                    break;
+                }
                 break;
               case 'sr':
                 switch (args[1]) {
+                  case roles.DAMAGE:
+                    switch (args[2]) {
+                      case 'previous':
+                        obj[key] = firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.damage;
+                        break;
+                      case 'current':
+                        obj[key] = firebaseStats.current
+                          .rank.damage;
+                        break;
+                      case 'slope':
+                        obj[key] = firebaseStats.current
+                          .rank.damage - firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.damage;
+                        if (obj[key] > 0) {
+                          obj[key] = slope.INCREASING;
+                        } else if (obj[key] < 0) {
+                          obj[key] = slope.DECREASING;
+                        } else {
+                          obj[key] = slope.TIED;
+                        }
+                        break;
+                      default:
+                        break;
+                    }
+                    break;
                   case 'highest':
-                    obj[key] = Math.max(firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .rank.damage,
-                    firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .rank.support,
-                    firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .rank.tank);
+                    switch (args[2]) {
+                      case 'previous':
+                        obj[key] = Math.max(firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.damage,
+                        firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.support,
+                        firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.tank);
+                        break;
+                      case 'current':
+                        obj[key] = Math.max(firebaseStats.current
+                          .rank.damage,
+                        firebaseStats.current
+                          .rank.support,
+                        firebaseStats.current
+                          .rank.tank);
+                        break;
+                      case 'slope':
+                        switch (Math.max(firebaseStats.current
+                          .rank.damage,
+                        firebaseStats.current
+                          .rank.support,
+                        firebaseStats.current
+                          .rank.tank)) {
+                          case (firebaseStats.current
+                            .rank.damage):
+                            obj[key] = firebaseStats.current
+                              .rank.damage - firebaseStats.scores[firebaseStats.length - 1]
+                              .rank.damage;
+                            if (obj[key] > 0) {
+                              obj[key] = slope.INCREASING;
+                            } else if (obj[key] < 0) {
+                              obj[key] = slope.DECREASING;
+                            } else {
+                              obj[key] = slope.TIED;
+                            }
+                            break;
+                          case (firebaseStats.current
+                            .rank.support):
+                            obj[key] = firebaseStats.current
+                              .rank.support - firebaseStats.scores[firebaseStats.length - 1]
+                              .rank.support;
+                            if (obj[key] > 0) {
+                              obj[key] = slope.INCREASING;
+                            } else if (obj[key] < 0) {
+                              obj[key] = slope.DECREASING;
+                            } else {
+                              obj[key] = slope.TIED;
+                            }
+                            break;
+                          case (firebaseStats.current
+                            .rank.tank):
+                            obj[key] = firebaseStats.current
+                              .rank.tank - firebaseStats.scores[firebaseStats.length - 1]
+                              .rank.tank;
+                            if (obj[key] > 0) {
+                              obj[key] = slope.INCREASING;
+                            } else if (obj[key] < 0) {
+                              obj[key] = slope.DECREASING;
+                            } else {
+                              obj[key] = slope.TIED;
+                            }
+                            break;
+                          default:
+                            break;
+                        }
+                        break;
+                      default:
+                        break;
+                    }
                     break;
-                  case classes.DAMAGE:
-                    obj[key] = firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .rank.damage;
+                  case 'main':
+                    switch (args[2]) {
+                      case 'previous':
+                        obj[key] = firebaseStats.scores[firebaseStats.length - 1]
+                          .rank[heroes[firebaseStats.current.main]];
+                        break;
+                      case 'current':
+                        obj[key] = firebaseStats.current
+                          .rank[heroes[firebaseStats.current.main]];
+                        break;
+                      case 'slope':
+                        obj[key] = firebaseStats.current
+                          .rank[heroes[firebaseStats.current.main]]
+                          - firebaseStats.scores[firebaseStats.length - 1]
+                            .rank[heroes[firebaseStats.current.main]];
+                        if (obj[key] > 0) {
+                          obj[key] = slope.INCREASING;
+                        } else if (obj[key] < 0) {
+                          obj[key] = slope.DECREASING;
+                        } else {
+                          obj[key] = slope.TIED;
+                        }
+                        break;
+                      default:
+                        break;
+                    }
                     break;
-                  case classes.SUPPORT:
-                    obj[key] = firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .rank.support;
+                  case roles.SUPPORT:
+                    switch (args[2]) {
+                      case 'previous':
+                        obj[key] = firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.support;
+                        break;
+                      case 'current':
+                        obj[key] = firebaseStats.current
+                          .rank.support;
+                        break;
+                      case 'slope':
+                        obj[key] = firebaseStats.current
+                          .rank.support - firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.support;
+                        if (obj[key] > 0) {
+                          obj[key] = slope.INCREASING;
+                        } else if (obj[key] < 0) {
+                          obj[key] = slope.DECREASING;
+                        } else {
+                          obj[key] = slope.TIED;
+                        }
+                        break;
+                      default:
+                        break;
+                    }
                     break;
-                  case classes.TANK:
-                    obj[key] = firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .rank.tank;
+                  case roles.TANK:
+                    switch (args[2]) {
+                      case 'previous':
+                        obj[key] = firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.tank;
+                        break;
+                      case 'current':
+                        obj[key] = firebaseStats.current
+                          .rank.tank;
+                        break;
+                      case 'slope':
+                        obj[key] = firebaseStats.current
+                          .rank.tank - firebaseStats.scores[firebaseStats.length - 1]
+                          .rank.tank;
+                        if (obj[key] > 0) {
+                          obj[key] = slope.INCREASING;
+                        } else if (obj[key] < 0) {
+                          obj[key] = slope.DECREASING;
+                        } else {
+                          obj[key] = slope.TIED;
+                        }
+                        break;
+                      default:
+                        break;
+                    }
                     break;
                   default:
                     break;
@@ -95,12 +268,67 @@ module.exports = {
               case 'matches':
                 switch (args[1]) {
                   case 'played':
-                    obj[key] = firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .competitive.all.games_played || 0;
+                    switch (args[2]) {
+                      case 'previous':
+                        obj[key] = firebaseStats.scores[firebaseStats.length - 1]
+                          .games.played || 0;
+                        break;
+                      case 'current':
+                        obj[key] = firebaseStats.current
+                          .games.played || 0;
+                        break;
+                      default:
+                        break;
+                    }
                     break;
                   case 'won':
-                    obj[key] = firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .competitive.all.games_won || 0;
+                    switch (args[2]) {
+                      case 'previous':
+                        obj[key] = firebaseStats.scores[firebaseStats.length - 1]
+                          .games.won || 0;
+                        break;
+                      case 'current':
+                        obj[key] = firebaseStats.current
+                          .games.won || 0;
+                        break;
+                      default:
+                        break;
+                    }
+                    break;
+                  default:
+                    break;
+                }
+                break;
+              case 'winrate':
+                switch (args[2]) {
+                  case 'previous':
+                    obj[key] = (firebaseStats.scores[firebaseStats.length - 1]
+                      .games.won || 0)
+                / firebaseStats.scores[firebaseStats.length - 1]
+                  .games.played || 1;
+                    break;
+                  case 'current':
+                    obj[key] = (firebaseStats.current
+                      .games.won || 0)
+                / firebaseStats.current
+                  .games.played || 1;
+                    break;
+                  case 'slope':
+                    obj[key] = (firebaseStats.current
+                      .games.won || 0)
+                / firebaseStats.current
+                  .games.played || 1
+                  - (firebaseStats.scores[firebaseStats.length - 1]
+                    .games.won || 0)
+              / firebaseStats.scores[firebaseStats.length - 1]
+                .games.played || 1;
+                    if (obj[key] > 0) {
+                      obj[key] = slope.INCREASING;
+                    } else if (obj[key] < 0) {
+                      obj[key] = slope.DECREASING;
+                    } else {
+                      obj[key] = slope.TIED;
+                    }
                     break;
                   default:
                     break;
@@ -109,8 +337,18 @@ module.exports = {
               case 'main':
                 switch (args[1]) {
                   case 'hero':
-                    obj[key] = firebaseStats.scores[firebaseStats.length - args[1] === 'previous' ? 2 : 1]
-                      .main;
+                    switch (args[2]) {
+                      case 'previous':
+                        obj[key] = firebaseStats.scores[firebaseStats.length - 1]
+                          .main || '';
+                        break;
+                      case 'current':
+                        obj[key] = firebaseStats.current
+                          .main || '';
+                        break;
+                      default:
+                        break;
+                    }
                     break;
                   default:
                     break;
@@ -134,14 +372,14 @@ module.exports = {
                       oversmashStats.stats.competitive_rank.support,
                       oversmashStats.stats.competitive_rank.tank);
                     break;
-                  case classes.DAMAGE:
-                    obj[key] = oversmashStats.stats.competitive_rank.damage;
+                  case roles.SUPPORT:
+                    obj[key] = oversmashStats.stats.competitive_rank.support || 0;
                     break;
-                  case classes.SUPPORT:
-                    obj[key] = oversmashStats.stats.competitive_rank.support;
+                  case roles.DAMAGE:
+                    obj[key] = oversmashStats.stats.competitive_rank.damage || 0;
                     break;
-                  case classes.TANK:
-                    obj[key] = oversmashStats.stats.competitive_rank.tank;
+                  case roles.TANK:
+                    obj[key] = oversmashStats.stats.competitive_rank.tank || 0;
                     break;
                   default:
                     break;
@@ -158,6 +396,10 @@ module.exports = {
                   default:
                     break;
                 }
+                break;
+              case 'winrate':
+                obj[key] = (oversmashStats.stats.competitive.all.game.games_won || 0)
+                / oversmashStats.stats.competitive.all.game.games_played || 1;
                 break;
               case 'main':
                 switch (args[1]) {
@@ -210,14 +452,12 @@ module.exports = {
       UPDATED: `endorsement_${sources.OVERSMASH}`,
     },
     SR: {
-      /* Precisa que a lista de heróis e classes (no início do arquivo) esteja completa
       MAIN: {
         PREVIOUS: `sr_main_previous_${sources.FIREBASE}`,
         CURRENT: `sr_main_current_${sources.FIREBASE}`,
         SLOPE: `sr_main_slope_${sources.FIREBASE}`,
         UPDATED: `sr_main_${sources.OVERSMASH}`,
       },
-      */
       HIGHEST: {
         PREVIOUS: `sr_highest_previous_${sources.FIREBASE}`,
         CURRENT: `sr_highest_current_${sources.FIREBASE}`,
@@ -225,22 +465,22 @@ module.exports = {
         UPDATED: `sr_highest_${sources.OVERSMASH}`,
       },
       DAMAGE: {
-        PREVIOUS: `sr_${classes.DAMAGE}_previous_${sources.FIREBASE}`,
-        CURRENT: `sr_${classes.DAMAGE}_current_${sources.FIREBASE}`,
-        SLOPE: `sr_${classes.DAMAGE}_slope_${sources.FIREBASE}`,
-        UPDATED: `sr_${classes.DAMAGE}_${sources.OVERSMASH}`,
+        PREVIOUS: `sr_${roles.DAMAGE}_previous_${sources.FIREBASE}`,
+        CURRENT: `sr_${roles.DAMAGE}_current_${sources.FIREBASE}`,
+        SLOPE: `sr_${roles.DAMAGE}_slope_${sources.FIREBASE}`,
+        UPDATED: `sr_${roles.DAMAGE}_${sources.OVERSMASH}`,
       },
       SUPPORT: {
-        PREVIOUS: `sr_${classes.SUPPORT}_previous_${sources.FIREBASE}`,
-        CURRENT: `sr_${classes.SUPPORT}_current_${sources.FIREBASE}`,
-        SLOPE: `sr_${classes.SUPPORT}_slope_${sources.FIREBASE}`,
-        UPDATED: `sr_${classes.SUPPORT}_${sources.OVERSMASH}`,
+        PREVIOUS: `sr_${roles.SUPPORT}_previous_${sources.FIREBASE}`,
+        CURRENT: `sr_${roles.SUPPORT}_current_${sources.FIREBASE}`,
+        SLOPE: `sr_${roles.SUPPORT}_slope_${sources.FIREBASE}`,
+        UPDATED: `sr_${roles.SUPPORT}_${sources.OVERSMASH}`,
       },
       TANK: {
-        PREVIOUS: `sr_${classes.TANK}_previous_${sources.FIREBASE}`,
-        CURRENT: `sr_${classes.TANK}_current_${sources.FIREBASE}`,
-        SLOPE: `sr_${classes.TANK}_slope_${sources.FIREBASE}`,
-        UPDATED: `sr_${classes.TANK}_${sources.OVERSMASH}`,
+        PREVIOUS: `sr_${roles.TANK}_previous_${sources.FIREBASE}`,
+        CURRENT: `sr_${roles.TANK}_current_${sources.FIREBASE}`,
+        SLOPE: `sr_${roles.TANK}_slope_${sources.FIREBASE}`,
+        UPDATED: `sr_${roles.TANK}_${sources.OVERSMASH}`,
       },
     },
     MATCHES: {
@@ -255,6 +495,12 @@ module.exports = {
         UPDATED: `matches_won_${sources.OVERSMASH}`,
       },
     },
+    WINRATE: {
+      PREVIOUS: `winrate_previous_${sources.FIREBASE}`,
+      CURRENT: `winrate_current_${sources.FIREBASE}`,
+      SLOPE: `winrate_slope_${sources.FIREBASE}`,
+      UPDATED: `winrate_${sources.OVERSMASH}`,
+    },
     MAIN: {
       HERO: {
         PREVIOUS: `main_hero_previous_${sources.FIREBASE}`,
@@ -262,17 +508,9 @@ module.exports = {
         UPDATED: `main_hero_${sources.OVERSMASH}`,
       },
       TIME: {
-        // NÃO GUARDAMOS O TEMPO DO MAIN NO FIREBASE!
-        // CURRENT: `main_time_current_${sources.FIREBASE}`,
         UPDATED: `main_time_${sources.OVERSMASH}`,
       },
     },
-    /*
-    PROFILE: {
-      TAG: `tag_${sources.FIREBASE}`,
-      PLATFORM: `platform_${sources.FIREBASE}`,
-    },
-    */
   },
 
   friendlyPlatforms: {
@@ -308,9 +546,10 @@ module.exports = {
     return baseUrl + tier + suffix;
   },
 
-  async fillObject(tag, platform, obj) {
-    // const checkings = getChecking(obj); Checa se o processo precisa do oversmash
-    const stats = await oversmash.playerStats(tag, platform);
+  async fillObject(obj, tag, platform) {
+    const playerStats = await oversmash.playerStats(tag, platform);
+    if (isEmpty(playerStats.stats.competitive)) return false;
+    let exists = false;
     await firebase
       .database()
       .ref('battletags')
@@ -318,8 +557,11 @@ module.exports = {
       .equalTo(tag) // ADICIONAR VERIFICAÇÃO DE PLATAFORMA!!!
       .once('value', async (snapshot) => {
         if (snapshot.val()) {
-          this.stringToInfo(obj, stats, fkey(snapshot.val()));
+          this.stringToInfo(obj, playerStats, fkey(snapshot.val()));
+          exists = true;
         }
       });
+    if (!exists) this.stringToInfo(obj, playerStats);
+    return true;
   },
 };

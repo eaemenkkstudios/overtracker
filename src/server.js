@@ -27,6 +27,7 @@ app.use(cors());
 app.use(routes);
 app.use(errors());
 
+
 updateOutdatedPlayers();
 setInterval(async () => {
   updateOutdatedPlayers();

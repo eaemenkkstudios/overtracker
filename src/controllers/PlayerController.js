@@ -2,149 +2,112 @@ const oversmash = require('oversmash').default();
 const firebase = require('firebase-admin');
 
 const overwatch = require('../overwatch');
-const { fkey, fval } = require('../util');
+const { fkey, fval, cloneObject } = require('../util');
 
-// const scoreCard = {
-//   endorsement: overwatch.player.ENDORSEMENT,
-//   games: {
-//     played: overwatch.player.MATCHES.PLAYED.UPDATED,
-//     won: overwatch.player.MATCHES.WON.UPDATED,
-//   },
-//   main: overwatch.player.MAIN.HERO.UPDATED,
-// };
+const scoreCard = Object.freeze({
+  endorsement: overwatch.player.ENDORSEMENT.UPDATED,
+  games: {
+    played: overwatch.player.MATCHES.PLAYED.UPDATED,
+    won: overwatch.player.MATCHES.WON.UPDATED,
+  },
+  main: overwatch.player.MAIN.HERO.UPDATED,
+  rank: {
+    damage: overwatch.player.SR.DAMAGE.UPDATED,
+    support: overwatch.player.SR.SUPPORT.UPDATED,
+    tank: overwatch.player.SR.TANK.UPDATED,
+  },
+});
 
-// const cards = {
-//   MATCH_UPDATE: {
-//     type: 'match_update',
-//     sr: {
-//       previous: overwatch.player.SR.MAIN.PREVIOUS,
-//       current: overwatch.player.SR.MAIN.CURRENT,
-//     },
-//   },
-//   MAIN_UPDATE: {
-//     type: 'main_update',
-//     time: overwatch.player.MAIN.TIME.CURRENT,
-//     main: {
-//       previous: overwatch.player.MAIN.HERO.PREVIOUS,
-//       current: overwatch.player.MAIN.HERO.CURRENT,
-//     },
-//   },
-//   ENDORSEMENT_UPDATE: {
-//     type: 'endorsement_update',
-//     endorsement: {
-//       previous: overwatch.player.ENDORSEMENT.PREVIOUS,
-//       current: overwatch.player.ENDORSEMENT.CURRENT,
-//     },
-//   },
-//   HIGHLIGHT: {
-//     type: 'highlight',
-//     sr: {
-//       current: overwatch.player.SR.HIGHEST.CURRENT,
-//       state: overwatch.player.SR.HIGHEST.SLOPE,
-//     },
-//     win_rate: {
-//       current: overwatch.player.WIN_RATE.CURRENT,
-//       state: overwatch.player.WIN_RATE.SLOPE,
-//     },
-//     main: {
-//       current: overwatch.player.MAIN.HERO.CURRENT,
-//       time: overwatch.player.MAIN.TIME.CURRENT,
-//     },
-//   },
-// };
-
-/**
-   * Creates the player's score object
-   * @async
-   * @param {String} tag Player's battletag
-   * @param {String} platform Player's platform
-   * @returns {{
-    *  date: String
-    *  endorsment: Number
-    *  main: String
-    *  rank: {
-    *    damage: Number
-    *    support: Number
-    *    tank: Number
-    *  }
-    *  games: {
-    *    played: Number
-    *    won: Number
-    *  }
-    * }} Score object
-    */
+/*
+const cards = Object.freeze({
+  MATCH_UPDATE: {
+    type: 'match_update',
+    sr: {
+      previous: overwatch.player.SR.HIGHEST.PREVIOUS,
+      current: overwatch.player.SR.HIGHEST.CURRENT,
+    },
+  },
+  MAIN_UPDATE: {
+    type: 'main_update',
+    time: overwatch.player.MAIN.TIME.CURRENT,
+    main: {
+      previous: overwatch.player.MAIN.HERO.PREVIOUS,
+      current: overwatch.player.MAIN.HERO.CURRENT,
+    },
+  },
+  ENDORSEMENT_UPDATE: {
+    type: 'endorsement_update',
+    endorsement: {
+      previous: overwatch.player.ENDORSEMENT.PREVIOUS,
+      current: overwatch.player.ENDORSEMENT.CURRENT,
+    },
+  },
+  HIGHLIGHT: {
+    type: 'highlight',
+    sr: {
+      current: overwatch.player.SR.HIGHEST.CURRENT,
+      state: overwatch.player.SR.HIGHEST.SLOPE,
+    },
+    win_rate: {
+      current: overwatch.player.WINRATE.CURRENT,
+      state: overwatch.player.WINRATE.SLOPE,
+    },
+    main: {
+      current: overwatch.player.MAIN.HERO.CURRENT,
+      time: overwatch.player.MAIN.TIME.CURRENT,
+    },
+  },
+});
+*/
 async function makeScore(tag, platform) {
-  const final = {
+  const score = {
     date: new Date().getTime(),
-    endorsement: 0,
-    games: {},
+    ...cloneObject(scoreCard),
   };
-  const player = await oversmash.playerStats(tag, platform);
-  final.endorsement = player.stats.endorsement_level;
-  if (player.stats.competitive.all) {
-    final.games.played = player.stats.competitive.all.game.games_played || 0;
-    final.games.won = player.stats.competitive.all.game.games_won || 0;
-  } else {
-    final.games.played = 0;
-    final.games.won = 0;
-  }
-  const main = Object.keys(player.stats.competitive).reduce((previousValue, currentValue) => {
-    if (previousValue === '' || previousValue === 'all') return currentValue;
-    let previousTimePlayed = player.stats.competitive[previousValue].game.time_played;
-    let currentTimePlayed = player.stats.competitive[currentValue].game.time_played;
-    if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
-    if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
-    return previousTimePlayed > currentTimePlayed ? previousValue : currentValue;
-  }, '');
-  final.main = main;
-  final.rank = {
-    damage: player.stats.competitive_rank.damage || 0,
-    support: player.stats.competitive_rank.support || 0,
-    tank: player.stats.competitive_rank.tank || 0,
-  };
-  return final;
+  const success = await overwatch.fillObject(score, tag, platform);
+  return success ? score : undefined;
 }
 
 /**
-   * Adds the rank image url to each rank
-   * @param {{
-    *  date: String
-    *  endorsment: Number
-    *  main: String
-    *  rank: {
-    *    damage: Number
-    *    support: Number
-    *    tank: Number
-    *  }
-    *  games: {
-    *    played: Number
-    *    won: Number
-    *  }
-    * }} score Player's score object
-    * @returns {{
-    *  rank: {
-    *    damage: {
-    *      sr: Number
-    *      img: String
-    *    }
-    *    support: {
-    *      sr: Number
-    *      img: String
-    *    }
-    *    tank: {
-    *      sr: Number
-    *      img: String
-    *    }
-    *  }
-    *  date: String
-    *  endorsment: Number
-    *  main: String
-    *  games: {
-    *    played: Number
-    *    won: Number
-    *  }
-    * }} Friendly Score Object
-    */
+ * Adds the rank image url to each rank
+ * @param {{
+  *  date: String
+  *  endorsment: Number
+  *  main: String
+  *  rank: {
+  *    damage: Number
+  *    support: Number
+  *    tank: Number
+  *  }
+  *  games: {
+  *    played: Number
+  *    won: Number
+  *  }
+  * }} score Player's score object
+  * @returns {{
+  *  rank: {
+  *    damage: {
+  *      sr: Number
+  *      img: String
+  *    }
+  *    support: {
+  *      sr: Number
+  *      img: String
+  *    }
+  *    tank: {
+  *      sr: Number
+  *      img: String
+  *    }
+  *  }
+  *  date: String
+  *  endorsment: Number
+  *  main: String
+  *  games: {
+  *    played: Number
+  *    won: Number
+  *  }
+  * }} Friendly Score Object
+  */
 function makeFriendlyScore(score) {
   Object.keys(score.rank).forEach((rank) => {
     const img = overwatch.getRankImageURL(score.rank[rank]);
@@ -157,12 +120,12 @@ function makeFriendlyScore(score) {
 }
 
 /**
-    * Registers the player in the database
-    * @async
-    * @param {String} tag Player's battletag
-    * @param {String} platform Player's platform
-    * @returns {*} The database referece or `undefined`
-    */
+ * Registers the player in the database
+ * @async
+ * @param {String} tag Player's battletag
+ * @param {String} platform Player's platform
+ * @returns {*} The database referece or `undefined`
+ */
 async function registerBattleTag(tag, platform) {
   platform = platform || 'pc';
   const player = await oversmash.player(tag, platform);
@@ -178,18 +141,28 @@ async function registerBattleTag(tag, platform) {
     platformIndex = 0;
   }
   if (platformIndex < 0) return undefined;
-  const playerScore = await makeScore(tag, platform);
-  const finalStats = {
-    tag,
-    platform,
-    lastUpdate: playerScore.date,
-    scores: [playerScore],
-  };
+  const current = await makeScore(tag, platform);
+  let finalStats = {};
+  if (current) {
+    finalStats = {
+      tag,
+      platform,
+      current,
+      lastUpdate: current.date,
+      scores: [],
+    };
+  } else {
+    finalStats = {
+      tag,
+      platform,
+      lastUpdate: new Date().getTime(),
+      scores: [],
+    };
+  }
   return firebase.database().ref('battletags').push(finalStats);
 }
 
 module.exports = {
-
   /**
    * Gets all of the players that haven't been updated in more than 12hrs
    * @async
@@ -207,9 +180,9 @@ module.exports = {
       .once('value', (snapshot) => {
         if (snapshot.val()) {
           Object.keys(snapshot.val()).forEach((player) => {
-            if (snapshot.val()[player].lastUpdate) {
+            if (snapshot.val()[player].current) {
               // 60 * 60 * 24 * 1000 = 8640000 = 24hrs
-              if (currentTime - snapshot.val()[player].lastUpdate >= (8640000 / 2)) {
+              if (currentTime - snapshot.val()[player].lastUpdate >= 8640000) {
                 outdatedPlayers.push({
                   tag: snapshot.val()[player].tag,
                   platform: snapshot.val()[player].platform,
@@ -230,27 +203,55 @@ module.exports = {
    */
   async updatePlayer(tag, platform) {
     const newScore = await makeScore(tag, platform);
+    if (!newScore) return;
     await firebase
       .database()
       .ref('battletags')
       .orderByChild('tag')
       .equalTo(tag)
       .once('value', async (snapshot) => {
-        const lastScore = fkey(snapshot.val()).scores.pop();
-        const hasChanged = !(JSON.stringify(lastScore.games) === JSON.stringify(newScore.games)
-        && JSON.stringify(lastScore.rank) === JSON.stringify(newScore.rank));
-        const newStats = {
-          [fval(snapshot.val())]: {
-            tag,
-            platform,
-            lastUpdate: newScore.date,
-            scores: hasChanged ? [
-              ...fkey(snapshot.val()).scores,
-              newScore,
-            ] : [...fkey(snapshot.val()).scores],
-          },
-        };
+        const lastScore = fkey(snapshot.val()).current;
+        const hasChanged = JSON.stringify(lastScore.games) !== JSON.stringify(newScore.games)
+        || JSON.stringify(lastScore.rank) !== JSON.stringify(newScore.rank);
+        let newStats = {};
+        if (fkey(snapshot.val()).scores) {
+          newStats = {
+            [fval(snapshot.val())]: {
+              tag,
+              platform,
+              scores: hasChanged ? [
+                ...fkey(snapshot.val()).scores,
+                fkey(snapshot.val()).current,
+              ] : [...fkey(snapshot.val()).scores],
+              lastUpdate: new Date().getTime(),
+              current: newScore,
+            },
+          };
+        } else {
+          newStats = {
+            [fval(snapshot.val())]: {
+              tag,
+              platform,
+              scores: hasChanged ? [fkey(snapshot.val()).current] : [],
+              lastUpdate: new Date().getTime(),
+              current: newScore,
+            },
+          };
+        }
         await snapshot.ref.update(newStats);
+      });
+  },
+
+  async getFeed(req, res) {
+    const { role } = req.body;
+    firebase
+      .database()
+      .ref('battletags')
+      .orderByChild(`current/${role}`)
+      .once('value', (snapshot) => {
+        const players = [];
+        players.push(snapshot.val());
+        res.status(200).json(players);
       });
   },
 
@@ -320,9 +321,11 @@ module.exports = {
               scores: [],
               now: makeFriendlyScore(newScore),
             };
-            fkey(snapshot.val()).scores.forEach((score) => {
-              stats.scores.push(makeFriendlyScore(score));
-            });
+            if (fkey(snapshot.val()).scores) {
+              fkey(snapshot.val()).scores.forEach((score) => {
+                stats.scores.push(makeFriendlyScore(score));
+              });
+            }
             res.status(200).json(stats);
           });
       })

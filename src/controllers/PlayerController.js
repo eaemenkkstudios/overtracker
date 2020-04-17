@@ -167,43 +167,43 @@ async function getGlobalFeed(role) {
 /**
  * Adds the rank image url to each rank
  * @param {{
-  *  date: String
-  *  endorsment: Number
-  *  main: String
-  *  rank: {
-  *    damage: Number
-  *    support: Number
-  *    tank: Number
-  *  }
-  *  games: {
-  *    played: Number
-  *    won: Number
-  *  }
-  * }} score Player's score object
-  * @returns {{
-  *  rank: {
-  *    damage: {
-  *      sr: Number
-  *      img: String
-  *    }
-  *    support: {
-  *      sr: Number
-  *      img: String
-  *    }
-  *    tank: {
-  *      sr: Number
-  *      img: String
-  *    }
-  *  }
-  *  date: String
-  *  endorsment: Number
-  *  main: String
-  *  games: {
-  *    played: Number
-  *    won: Number
-  *  }
-  * }} Friendly Score Object
-  */
+ *  date: String
+ *  endorsment: Number
+ *  main: String
+ *  rank: {
+ *    damage: Number
+ *    support: Number
+ *    tank: Number
+ *  }
+ *  games: {
+ *    played: Number
+ *    won: Number
+ *  }
+ * }} score Player's score object
+ * @returns {{
+ *  rank: {
+ *    damage: {
+ *      sr: Number
+ *      img: String
+ *    }
+ *    support: {
+ *      sr: Number
+ *      img: String
+ *    }
+ *    tank: {
+ *      sr: Number
+ *      img: String
+ *    }
+ *  }
+ *  date: String
+ *  endorsment: Number
+ *  main: String
+ *  games: {
+ *    played: Number
+ *    won: Number
+ *  }
+ * }} Friendly Score Object
+ */
 function makeFriendlyScore(score) {
   Object.keys(score.rank).forEach((rank) => {
     const img = overwatch.getRankImageURL(score.rank[rank]);
@@ -262,10 +262,10 @@ async function registerBattleTag(tag, platform) {
  * Gets all of the players that haven't been updated in more than 12hrs
  * @async
  * @returns {Promise<[{
-*  tag: String
-*  platform: String
-* }]>} Array of outdated players
-*/
+ *  tag: String
+ *  platform: String
+ * }]>} Array of outdated players
+ */
 async function getOutdatedPlayers() {
   const currentTime = new Date().getTime();
   const outdatedPlayers = [];

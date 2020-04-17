@@ -31,7 +31,7 @@ app.use(errors());
 updateOutdatedPlayers();
 setInterval(async () => {
   updateOutdatedPlayers();
-}, 43200000); // 1000 * 60 * 60 * 12 = 43200000 = 12hrs
+}, 86400000 / 4); // 1000 * 60 * 60 * 24 = 86400000 = 24hrs
 
 app.listen(process.env.PORT || 8080, () => {
   console.log(`Listening to port ${process.env.PORT || 8080}`);

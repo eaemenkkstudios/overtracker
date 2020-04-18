@@ -4,7 +4,8 @@ const path = require('path');
 module.exports = {
   async uploadImg(req, res) {
     const serverUrl = req.get('host');
-    const { files, protocol } = req;
+    const { files } = req;
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const paths = files.map((file) => ({
       path: `${protocol}://${serverUrl}/images/${file.filename}`,
     }));

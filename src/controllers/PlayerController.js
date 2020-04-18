@@ -3,7 +3,7 @@ const firebase = require('firebase-admin');
 
 const overwatch = require('../overwatch');
 const {
-  lVal, fVal, fKey, objectClone, shuffle,
+  fVal, fKey, objectClone, shuffle,
 } = require('../util');
 
 const scoreCard = Object.freeze({
@@ -24,33 +24,24 @@ const highlightChance = 0.2;
 
 const cards = Object.freeze({
   SUPPORT_UPDATE: {
-    type: 'match_update',
-    games: {
-      previous: overwatch.player.MATCHES.PLAYED.PREVIOUS,
-      current: overwatch.player.MATCHES.PLAYED.CURRENT,
-    },
+    type: 'sr_update',
+    role: overwatch.roles.SUPPORT,
     sr: {
       previous: overwatch.player.SR.SUPPORT.PREVIOUS,
       current: overwatch.player.SR.SUPPORT.CURRENT,
     },
   },
   DAMAGE_UPDATE: {
-    type: 'match_update',
-    games: {
-      previous: overwatch.player.MATCHES.PLAYED.PREVIOUS,
-      current: overwatch.player.MATCHES.PLAYED.CURRENT,
-    },
+    type: 'sr_update',
+    role: overwatch.roles.DAMAGE,
     sr: {
       previous: overwatch.player.SR.DAMAGE.PREVIOUS,
       current: overwatch.player.SR.DAMAGE.CURRENT,
     },
   },
   TANK_UPDATE: {
-    type: 'match_update',
-    games: {
-      previous: overwatch.player.MATCHES.PLAYED.PREVIOUS,
-      current: overwatch.player.MATCHES.PLAYED.CURRENT,
-    },
+    type: 'sr_update',
+    role: overwatch.roles.TANK,
     sr: {
       previous: overwatch.player.SR.TANK.PREVIOUS,
       current: overwatch.player.SR.TANK.CURRENT,
@@ -75,11 +66,11 @@ const cards = Object.freeze({
     type: 'highlight',
     sr: {
       current: overwatch.player.SR.HIGHEST.CURRENT,
-      state: overwatch.player.SR.HIGHEST.SLOPE,
+      slope: overwatch.player.SR.HIGHEST.SLOPE,
     },
-    win_rate: {
+    winrate: {
       current: overwatch.player.WINRATE.CURRENT,
-      state: overwatch.player.WINRATE.SLOPE,
+      slope: overwatch.player.WINRATE.SLOPE,
     },
     main: {
       current: overwatch.player.MAIN.HERO.CURRENT,
@@ -97,51 +88,79 @@ async function makeScore(tag, platform) {
   return success ? score : undefined;
 }
 
-async function getGlobalFeed(role) {
+async function makeFeed(role, page, customList) {
   const finalCards = [];
   const players = (await firebase
     .database()
     .ref('battletags')
     .orderByChild(`current/rank/${role}`)
-    .limitToLast(10)
     .once('value'))
     .val();
-  const playerKeys = Object.keys(players);
-  await Promise.all(playerKeys.map(async (key) => {
-    if (players[key].scores) {
+  const allPlayers = customList ? ({ ...customList }) : players;
+  await Promise.all(Object.keys(allPlayers).map(async (key) => {
+    if (allPlayers[key] && allPlayers[key].scores
+      && allPlayers[key].scores[allPlayers[key].scores.length - page]) {
       const cardArray = [];
-      if (players[key].current.main
-         !== lVal(players[key].scores).main) {
+      if ((page <= 1 ? allPlayers[key].current.main
+        : allPlayers[key].scores[allPlayers[key].scores.length - page + 1].main)
+         !== allPlayers[key].scores[allPlayers[key].scores.length - page].main) {
         cardArray.push({
-          date: new Date().getTime(),
+          date: allPlayers[key].current.date,
+          player: {
+            id: key,
+            tag: allPlayers[key].tag,
+            platform: allPlayers[key].platform,
+          },
           ...objectClone(cards.MAIN_UPDATE),
         });
       }
-      if (players[key].current.endorsement
-        !== lVal(players[key].scores).endorsement) {
+      if ((page <= 1 ? allPlayers[key].current.endorsement
+        : allPlayers[key].scores[allPlayers[key].scores.length - page + 1].endorsement)
+         !== allPlayers[key].scores[allPlayers[key].scores.length - page].endorsement) {
         cardArray.push({
-          date: new Date().getTime(),
+          date: allPlayers[key].current.date,
+          player: {
+            id: key,
+            tag: allPlayers[key].tag,
+            platform: allPlayers[key].platform,
+          },
           ...objectClone(cards.ENDORSEMENT_UPDATE),
         });
       }
-      if (players[key].current.games.played
-      !== lVal(players[key].scores).games.played) {
+      if ((page <= 1 ? allPlayers[key].current.rank[role]
+        : allPlayers[key].scores[allPlayers[key].scores.length - page + 1].rank[role])
+         !== allPlayers[key].scores[allPlayers[key].scores.length - page].rank[role]) {
         switch (role) {
           case overwatch.roles.SUPPORT:
             cardArray.push({
-              date: new Date().getTime(),
+              date: allPlayers[key].current.date,
+              player: {
+                id: key,
+                tag: allPlayers[key].tag,
+                platform: allPlayers[key].platform,
+              },
               ...objectClone(cards.SUPPORT_UPDATE),
             });
             break;
           case overwatch.roles.DAMAGE:
             cardArray.push({
-              date: new Date().getTime(),
+              date: allPlayers[key].current.date,
+              player: {
+                id: key,
+                tag: allPlayers[key].tag,
+                platform: allPlayers[key].platform,
+              },
               ...objectClone(cards.DAMAGE_UPDATE),
             });
             break;
           case overwatch.roles.TANK:
             cardArray.push({
-              date: new Date().getTime(),
+              date: allPlayers[key].current.date,
+              player: {
+                id: key,
+                tag: allPlayers[key].tag,
+                platform: allPlayers[key].platform,
+              },
               ...objectClone(cards.TANK_UPDATE),
             });
             break;
@@ -152,16 +171,22 @@ async function getGlobalFeed(role) {
       if (Math.random <= highlightChance) {
         cardArray.push({
           date: new Date().getTime(),
+          player: {
+            id: key,
+            tag: allPlayers[key].tag,
+            platform: allPlayers[key].platform,
+          },
           ...objectClone(cards.HIGHLIGHT),
         });
       }
       await Promise.all(cardArray.map(async (card) => {
-        const success = await overwatch.fillObject(card, players[key].tag, players[key].platform);
+        const success = await overwatch
+          .fillObject(card, allPlayers[key].tag, allPlayers[key].platform);
         if (success === true) finalCards.push(objectClone(card));
       }));
     }
   }));
-  return shuffle(finalCards);
+  return finalCards;
 }
 
 /**
@@ -342,9 +367,51 @@ module.exports = {
   getOutdatedPlayers,
   updatePlayer,
 
-  async  getFeed(req, res) {
-    const { role } = req.body;
-    getGlobalFeed(role).then((feed) => res.json(feed));
+  async getFeed(req, res) {
+    const { page } = req.body;
+    const { authorization } = req.headers;
+    const specificFeeds = [];
+    let finalFeed = [];
+
+    await Promise.all(Object.values(overwatch.roles).map(
+      async (role) => {
+        specificFeeds.push(await makeFeed(role, page));
+      },
+    ));
+
+    if (authorization) {
+      const playersList = [];
+      await firebase.auth().verifyIdToken(authorization)
+        .then(async (userData) => {
+          await firebase
+            .database()
+            .ref('accounts')
+            .child(userData.uid)
+            .child('following')
+            .once('value', async (snapshot) => {
+              await Promise.all(Object.values(snapshot.val()).map(async (snap) => firebase
+                .database()
+                .ref('battletags')
+                .child(snap)
+                .once('value', (player) => {
+                  playersList.push(player.val());
+                  console.log('asd');
+                })));
+            })
+            .catch(() => res.status(401).send());
+          await Promise.all(Object.values(overwatch.roles).map(
+            async (role) => {
+              console.log('fgh');
+              specificFeeds.push(await makeFeed(role, page, playersList));
+            },
+          ));
+        });
+    }
+    specificFeeds.forEach((feed) => {
+      finalFeed = finalFeed.concat(feed);
+    });
+    finalFeed = shuffle(finalFeed);
+    res.json(finalFeed);
   },
   /**
    * Gets following players

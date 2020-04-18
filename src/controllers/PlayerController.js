@@ -65,8 +65,14 @@ const cards = Object.freeze({
     type: 'main_update',
     time: overwatch.player.MAIN.TIME.CURRENT,
     main: {
-      previous: overwatch.player.MAIN.HERO.PREVIOUS,
-      current: overwatch.player.MAIN.HERO.CURRENT,
+      previous: {
+        hero: overwatch.player.MAIN.HERO.PREVIOUS,
+        role: overwatch.player.MAIN.ROLE.PREVIOUS,
+      },
+      current: {
+        hero: overwatch.player.MAIN.HERO.CURRENT,
+        role: overwatch.player.MAIN.ROLE.CURRENT,
+      },
     },
   },
   HIGHLIGHT: {
@@ -81,6 +87,7 @@ const cards = Object.freeze({
     },
     main: {
       current: overwatch.player.MAIN.HERO.CURRENT,
+      role: overwatch.player.MAIN.ROLE.CURRENT,
       time: overwatch.player.MAIN.TIME.CURRENT,
     },
   },
@@ -91,7 +98,7 @@ async function makeScore(tag, platform) {
     date: new Date().getTime(),
     ...objectClone(scoreCard),
   };
-  const success = await overwatch.fillObject(score, tag, platform);
+  const success = await overwatch.fillObject(score, tag, platform, 1);
   return success ? score : undefined;
 }
 
@@ -113,7 +120,7 @@ async function makeFeed(role, page, generic, customList) {
     if (players[key] && players[key].scores
       && players[key].scores[players[key].scores.length - page]) {
       const cardArray = [];
-      if ((page <= 1 ? players[key].current.main
+      if ((page === 1 ? players[key].current.main
         : players[key].scores[players[key].scores.length - page + 1].main)
          !== players[key].scores[players[key].scores.length - page].main) {
         cardArray.push({
@@ -126,7 +133,7 @@ async function makeFeed(role, page, generic, customList) {
           ...objectClone(cards.MAIN_UPDATE),
         });
       }
-      if ((page <= 1 ? players[key].current.endorsement
+      if (generic && (page <= 1 ? players[key].current.endorsement
         : players[key].scores[players[key].scores.length - page + 1].endorsement)
          !== players[key].scores[players[key].scores.length - page].endorsement) {
         cardArray.push({
@@ -209,7 +216,7 @@ async function makeFeed(role, page, generic, customList) {
       }
       await Promise.all(cardArray.map(async (card) => {
         const success = await overwatch
-          .fillObject(card, players[key].tag, players[key].platform);
+          .fillObject(card, players[key].tag, players[key].platform, page);
         if (success === true) finalCards.push(objectClone(card));
       }));
     }
@@ -258,6 +265,10 @@ async function makeFeed(role, page, generic, customList) {
  * }} Friendly Score Object
  */
 function makeFriendlyScore(score) {
+  score.main = {
+    hero: score.main,
+    role: overwatch.heroes[score.main],
+  };
   Object.keys(score.rank).forEach((rank) => {
     const img = overwatch.getRankImageURL(score.rank[rank]);
     score.rank[rank] = {

@@ -63,17 +63,17 @@ const cards = Object.freeze({
   },
   MAIN_UPDATE: {
     type: 'main_update',
-    time: overwatch.player.MAIN.TIME.CURRENT,
-    main: {
-      previous: {
-        hero: overwatch.player.MAIN.HERO.PREVIOUS,
-        role: overwatch.player.MAIN.ROLE.PREVIOUS,
-      },
-      current: {
-        hero: overwatch.player.MAIN.HERO.CURRENT,
-        role: overwatch.player.MAIN.ROLE.CURRENT,
-      },
+    previous: {
+      hero: overwatch.player.MAIN.HERO.PREVIOUS,
+      role: overwatch.player.MAIN.ROLE.PREVIOUS,
     },
+    current: {
+      hero: overwatch.player.MAIN.HERO.CURRENT,
+      role: overwatch.player.MAIN.ROLE.CURRENT,
+      time: overwatch.player.MAIN.TIME.CURRENT,
+    },
+
+
   },
   HIGHLIGHT: {
     type: 'highlight',
@@ -120,7 +120,7 @@ async function makeFeed(role, page, generic, customList) {
     if (players[key] && players[key].scores
       && players[key].scores[players[key].scores.length - page]) {
       const cardArray = [];
-      if ((page === 1 ? players[key].current.main
+      if (generic && (page === 1 ? players[key].current.main
         : players[key].scores[players[key].scores.length - page + 1].main)
          !== players[key].scores[players[key].scores.length - page].main) {
         cardArray.push({

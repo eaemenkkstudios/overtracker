@@ -332,20 +332,20 @@ function stringToInfo(obj, oversmashStats, firebaseStats) {
               }
               break;
             case 'winrate':
-              switch (args[2]) {
+              switch (args[1]) {
                 case 'previous':
                   if (!firebaseStats.scores || firebaseStats.scores.length === 0) break;
-                  obj[key] = (firebaseStats.scores[firebaseStats.scores.length - 1]
+                  obj[key] = `${(((firebaseStats.scores[firebaseStats.scores.length - 1]
                     .games.won || 0)
               / firebaseStats.scores[firebaseStats.scores.length - 1]
-                .games.played || 1;
+                .games.played || 1) * 100).toFixed(2)}%`;
                   break;
                 case 'current':
                   if (!firebaseStats.current) break;
-                  obj[key] = (firebaseStats.current
+                  obj[key] = `${(((firebaseStats.current
                     .games.won || 0)
               / firebaseStats.current
-                .games.played || 1;
+                .games.played || 1) * 100).toFixed(2)}%`;
                   break;
                 case 'slope':
                   if (!firebaseStats.scores) {
@@ -438,8 +438,8 @@ function stringToInfo(obj, oversmashStats, firebaseStats) {
               }
               break;
             case 'winrate':
-              obj[key] = (oversmashStats.stats.competitive.all.game.games_won || 0)
-              / oversmashStats.stats.competitive.all.game.games_played || 1;
+              obj[key] = (`${(((oversmashStats.stats.competitive.all.game.games_won || 0)
+              / oversmashStats.stats.competitive.all.game.games_played || 1) * 100).toFixed(2)}%`);
               break;
             case 'main':
               switch (args[1]) {

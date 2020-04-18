@@ -35,6 +35,9 @@ routes.get('/feed', celebrate({
   [Segments.HEADERS]: Joi.object({
     authorization: Joi.string().optional(),
   }).unknown(),
+  [Segments.QUERY]: Joi.object().keys({
+    page: Joi.number().valid().min(1).optional(),
+  }),
 }), PlayerController.getFeed);
 
 module.exports = routes;

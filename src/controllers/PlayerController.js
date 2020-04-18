@@ -54,6 +54,13 @@ const cards = Object.freeze({
       current: overwatch.player.ENDORSEMENT.CURRENT,
     },
   },
+  WINRATE_UPDATE: {
+    type: 'winrate_update',
+    winrate: {
+      previous: overwatch.player.WINRATE.PREVIOUS,
+      current: overwatch.player.WINRATE.CURRENT,
+    },
+  },
   MAIN_UPDATE: {
     type: 'main_update',
     time: overwatch.player.MAIN.TIME.CURRENT,
@@ -90,76 +97,96 @@ async function makeScore(tag, platform) {
 
 async function makeFeed(role, page, customList) {
   const finalCards = [];
-  const players = (await firebase
-    .database()
-    .ref('battletags')
-    .orderByChild(`current/rank/${role}`)
-    .once('value'))
-    .val();
-  const allPlayers = customList ? ({ ...customList }) : players;
-  await Promise.all(Object.keys(allPlayers).map(async (key) => {
-    if (allPlayers[key] && allPlayers[key].scores
-      && allPlayers[key].scores[allPlayers[key].scores.length - page]) {
+  let players = {};
+  if (customList) {
+    players = customList;
+  } else {
+    players = (await firebase
+      .database()
+      .ref('battletags')
+      .orderByChild(`current/rank/${role}`)
+      .once('value'))
+      .val();
+  }
+
+  await Promise.all(Object.keys(players).map(async (key) => {
+    if (players[key] && players[key].scores
+      && players[key].scores[players[key].scores.length - page]) {
       const cardArray = [];
-      if ((page <= 1 ? allPlayers[key].current.main
-        : allPlayers[key].scores[allPlayers[key].scores.length - page + 1].main)
-         !== allPlayers[key].scores[allPlayers[key].scores.length - page].main) {
+      if ((page <= 1 ? players[key].current.main
+        : players[key].scores[players[key].scores.length - page + 1].main)
+         !== players[key].scores[players[key].scores.length - page].main) {
         cardArray.push({
-          date: allPlayers[key].current.date,
+          date: players[key].current.date,
           player: {
             id: key,
-            tag: allPlayers[key].tag,
-            platform: allPlayers[key].platform,
+            tag: players[key].tag,
+            platform: players[key].platform,
           },
           ...objectClone(cards.MAIN_UPDATE),
         });
       }
-      if ((page <= 1 ? allPlayers[key].current.endorsement
-        : allPlayers[key].scores[allPlayers[key].scores.length - page + 1].endorsement)
-         !== allPlayers[key].scores[allPlayers[key].scores.length - page].endorsement) {
+      if ((page <= 1 ? players[key].current.endorsement
+        : players[key].scores[players[key].scores.length - page + 1].endorsement)
+         !== players[key].scores[players[key].scores.length - page].endorsement) {
         cardArray.push({
-          date: allPlayers[key].current.date,
+          date: players[key].current.date,
           player: {
             id: key,
-            tag: allPlayers[key].tag,
-            platform: allPlayers[key].platform,
+            tag: players[key].tag,
+            platform: players[key].platform,
           },
           ...objectClone(cards.ENDORSEMENT_UPDATE),
         });
       }
-      if ((page <= 1 ? allPlayers[key].current.rank[role]
-        : allPlayers[key].scores[allPlayers[key].scores.length - page + 1].rank[role])
-         !== allPlayers[key].scores[allPlayers[key].scores.length - page].rank[role]) {
+      if ((page <= 1 ? (players[key].current.games.won / players[key].current.games.played)
+        : (players[key].scores[players[key].scores.length - page + 1].games.won
+          / players[key].scores[players[key].scores.length - page + 1].games.played))
+         !== (players[key].scores[players[key].scores.length - page].games.won
+          / players[key].scores[players[key].scores.length - page].games.played)) {
+        cardArray.push({
+          date: players[key].current.date,
+          player: {
+            id: key,
+            tag: players[key].tag,
+            platform: players[key].platform,
+          },
+          ...objectClone(cards.WINRATE_UPDATE),
+        });
+      }
+      if ((page <= 1 ? players[key].current.rank[role]
+        : players[key].scores[players[key].scores.length - page + 1].rank[role])
+         !== players[key].scores[players[key].scores.length - page].rank[role]) {
         switch (role) {
           case overwatch.roles.SUPPORT:
             cardArray.push({
-              date: allPlayers[key].current.date,
+              date: players[key].current.date,
               player: {
                 id: key,
-                tag: allPlayers[key].tag,
-                platform: allPlayers[key].platform,
+                tag: players[key].tag,
+                platform: players[key].platform,
               },
               ...objectClone(cards.SUPPORT_UPDATE),
             });
             break;
           case overwatch.roles.DAMAGE:
             cardArray.push({
-              date: allPlayers[key].current.date,
+              date: players[key].current.date,
               player: {
                 id: key,
-                tag: allPlayers[key].tag,
-                platform: allPlayers[key].platform,
+                tag: players[key].tag,
+                platform: players[key].platform,
               },
               ...objectClone(cards.DAMAGE_UPDATE),
             });
             break;
           case overwatch.roles.TANK:
             cardArray.push({
-              date: allPlayers[key].current.date,
+              date: players[key].current.date,
               player: {
                 id: key,
-                tag: allPlayers[key].tag,
-                platform: allPlayers[key].platform,
+                tag: players[key].tag,
+                platform: players[key].platform,
               },
               ...objectClone(cards.TANK_UPDATE),
             });
@@ -168,20 +195,20 @@ async function makeFeed(role, page, customList) {
             break;
         }
       }
-      if (Math.random <= highlightChance) {
+      if (Math.random() <= highlightChance) {
         cardArray.push({
           date: new Date().getTime(),
           player: {
             id: key,
-            tag: allPlayers[key].tag,
-            platform: allPlayers[key].platform,
+            tag: players[key].tag,
+            platform: players[key].platform,
           },
           ...objectClone(cards.HIGHLIGHT),
         });
       }
       await Promise.all(cardArray.map(async (card) => {
         const success = await overwatch
-          .fillObject(card, allPlayers[key].tag, allPlayers[key].platform);
+          .fillObject(card, players[key].tag, players[key].platform);
         if (success === true) finalCards.push(objectClone(card));
       }));
     }
@@ -368,7 +395,8 @@ module.exports = {
   updatePlayer,
 
   async getFeed(req, res) {
-    const { page } = req.body;
+    let { page } = req.query;
+    page = page || 1;
     const { authorization } = req.headers;
     const specificFeeds = [];
     let finalFeed = [];
@@ -380,37 +408,38 @@ module.exports = {
     ));
 
     if (authorization) {
-      const playersList = [];
-      await firebase.auth().verifyIdToken(authorization)
-        .then(async (userData) => {
-          await firebase
+      const playersList = {};
+      const auth = await firebase.auth().verifyIdToken(authorization)
+        .catch(() => res.status(400).send());
+      if (auth.uid) {
+        const following = (await firebase
+          .database()
+          .ref('accounts')
+          .child(auth.uid)
+          .child('following')
+          .once('value')).val();
+        if (following) {
+          await Promise.all(Object.values(following).map(async (snap) => firebase
             .database()
-            .ref('accounts')
-            .child(userData.uid)
-            .child('following')
-            .once('value', async (snapshot) => {
-              await Promise.all(Object.values(snapshot.val()).map(async (snap) => firebase
-                .database()
-                .ref('battletags')
-                .child(snap)
-                .once('value', (player) => {
-                  playersList.push(player.val());
-                  console.log('asd');
-                })));
-            })
-            .catch(() => res.status(401).send());
-          await Promise.all(Object.values(overwatch.roles).map(
-            async (role) => {
-              console.log('fgh');
-              specificFeeds.push(await makeFeed(role, page, playersList));
-            },
-          ));
-        });
+            .ref('battletags')
+            .orderByKey()
+            .equalTo(snap)
+            .once('value', (player) => {
+              playersList[fKey(player.val())] = fVal(player.val());
+            })));
+        }
+
+        await Promise.all(Object.values(overwatch.roles).map(
+          async (role) => {
+            specificFeeds.push(await makeFeed(role, page, playersList));
+          },
+        ));
+      } else return;
     }
     specificFeeds.forEach((feed) => {
       finalFeed = finalFeed.concat(feed);
     });
-    finalFeed = shuffle(finalFeed);
+    finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
     res.json(finalFeed);
   },
   /**

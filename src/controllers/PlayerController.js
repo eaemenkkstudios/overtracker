@@ -463,6 +463,7 @@ module.exports = {
               .ref('battletags')
               .once('value', (snap) => {
                 const followedPlayers = snapshot.val();
+                if (!followedPlayers) return;
                 const playersInfo = snap.val();
                 const tagIds = Object.keys(followedPlayers).map((id) => followedPlayers[id]);
                 const players = [];

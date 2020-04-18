@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { errors } = require('celebrate');
 const firebase = require('firebase-admin');
 const firebaseConfig = require('./config/config');
@@ -24,6 +25,7 @@ async function updateOutdatedPlayers() {
 
 app.use(express.json());
 app.use(cors());
+app.use('/images', express.static(path.resolve(__dirname, '..', 'uploads')));
 app.use(routes);
 app.use(errors());
 

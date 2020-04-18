@@ -31,13 +31,19 @@ routes.get('/following', celebrate({
   }).unknown(),
 }), PlayerController.getFollowing);
 
-routes.get('/feed', celebrate({
+routes.get('/feed/global', celebrate({
+  [Segments.QUERY]: Joi.object().keys({
+    page: Joi.number().valid().min(1).optional(),
+  }),
+}), PlayerController.getGlobalFeed);
+
+routes.get('/feed/local', celebrate({
   [Segments.HEADERS]: Joi.object({
-    authorization: Joi.string().optional(),
+    authorization: Joi.string().required(),
   }).unknown(),
   [Segments.QUERY]: Joi.object().keys({
     page: Joi.number().valid().min(1).optional(),
   }),
-}), PlayerController.getFeed);
+}), PlayerController.getLocalFeed);
 
 module.exports = routes;

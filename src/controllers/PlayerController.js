@@ -20,7 +20,7 @@ const scoreCard = Object.freeze({
   },
 });
 
-const highlightChance = 0.2;
+const highlightChance = 0.25;
 
 const cards = Object.freeze({
   SUPPORT_UPDATE: {
@@ -95,7 +95,7 @@ async function makeScore(tag, platform) {
   return success ? score : undefined;
 }
 
-async function makeFeed(role, page, customList) {
+async function makeFeed(role, page, generic, customList) {
   const finalCards = [];
   let players = {};
   if (customList) {
@@ -139,7 +139,8 @@ async function makeFeed(role, page, customList) {
           ...objectClone(cards.ENDORSEMENT_UPDATE),
         });
       }
-      if ((page <= 1 ? (players[key].current.games.won / players[key].current.games.played)
+      if (generic && (page <= 1 ? (players[key].current.games.won
+        / players[key].current.games.played)
         : (players[key].scores[players[key].scores.length - page + 1].games.won
           / players[key].scores[players[key].scores.length - page + 1].games.played))
          !== (players[key].scores[players[key].scores.length - page].games.won
@@ -195,7 +196,7 @@ async function makeFeed(role, page, customList) {
             break;
         }
       }
-      if (Math.random() <= highlightChance) {
+      if (generic && Math.random() <= highlightChance) {
         cardArray.push({
           date: new Date().getTime(),
           player: {
@@ -394,48 +395,58 @@ module.exports = {
   getOutdatedPlayers,
   updatePlayer,
 
-  async getFeed(req, res) {
+  async getLocalFeed(req, res) {
     let { page } = req.query;
     page = page || 1;
     const { authorization } = req.headers;
     const specificFeeds = [];
     let finalFeed = [];
 
+    const playersList = {};
+    const auth = await firebase.auth().verifyIdToken(authorization)
+      .catch(() => res.status(400).send());
+    if (auth.uid) {
+      const following = (await firebase
+        .database()
+        .ref('accounts')
+        .child(auth.uid)
+        .child('following')
+        .once('value')).val();
+      if (following) {
+        await Promise.all(Object.values(following).map(async (snap) => firebase
+          .database()
+          .ref('battletags')
+          .orderByKey()
+          .equalTo(snap)
+          .once('value', (player) => {
+            playersList[fKey(player.val())] = fVal(player.val());
+          })));
+      }
+      await Promise.all(Object.values(overwatch.roles).map(
+        async (role, i) => {
+          specificFeeds.push(await makeFeed(role, page, i === 0, playersList));
+        },
+      ));
+      specificFeeds.forEach((feed) => {
+        finalFeed = finalFeed.concat(feed);
+      });
+      finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
+      res.json(finalFeed);
+    }
+  },
+
+  async getGlobalFeed(req, res) {
+    let { page } = req.query;
+    page = page || 1;
+    const specificFeeds = [];
+    let finalFeed = [];
+
     await Promise.all(Object.values(overwatch.roles).map(
-      async (role) => {
-        specificFeeds.push(await makeFeed(role, page));
+      async (role, i) => {
+        specificFeeds.push(await makeFeed(role, page, i === 0));
       },
     ));
 
-    if (authorization) {
-      const playersList = {};
-      const auth = await firebase.auth().verifyIdToken(authorization)
-        .catch(() => res.status(400).send());
-      if (auth.uid) {
-        const following = (await firebase
-          .database()
-          .ref('accounts')
-          .child(auth.uid)
-          .child('following')
-          .once('value')).val();
-        if (following) {
-          await Promise.all(Object.values(following).map(async (snap) => firebase
-            .database()
-            .ref('battletags')
-            .orderByKey()
-            .equalTo(snap)
-            .once('value', (player) => {
-              playersList[fKey(player.val())] = fVal(player.val());
-            })));
-        }
-
-        await Promise.all(Object.values(overwatch.roles).map(
-          async (role) => {
-            specificFeeds.push(await makeFeed(role, page, playersList));
-          },
-        ));
-      } else return;
-    }
     specificFeeds.forEach((feed) => {
       finalFeed = finalFeed.concat(feed);
     });

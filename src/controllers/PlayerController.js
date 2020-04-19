@@ -78,8 +78,8 @@ const cards = Object.freeze({
   HIGHLIGHT: {
     type: 'highlight',
     sr: {
-      current: overwatch.player.SR.HIGHEST.CURRENT,
-      slope: overwatch.player.SR.HIGHEST.SLOPE,
+      current: overwatch.player.SR.MAIN.CURRENT,
+      slope: overwatch.player.SR.MAIN.SLOPE,
     },
     winrate: {
       current: overwatch.player.WINRATE.CURRENT,

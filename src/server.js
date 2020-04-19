@@ -12,7 +12,6 @@ firebase.initializeApp({
   databaseURL: firebaseConfig.databaseURL,
 });
 
-const overwatch = require('./overwatch');
 const PlayerController = require('./controllers/PlayerController');
 
 const app = express();
@@ -38,8 +37,3 @@ setInterval(async () => {
 app.listen(process.env.PORT || 8080, () => {
   console.log(`Listening to port ${process.env.PORT || 8080}`);
 });
-
-module.exports = {
-  overwatch,
-  PlayerController,
-};

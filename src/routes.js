@@ -1,18 +1,10 @@
 const express = require('express');
 const { celebrate, Segments, Joi } = require('celebrate');
-const multer = require('multer');
-const uploadConfig = require('./config/uploadConfig');
-
-const upload = multer(uploadConfig);
 
 const routes = express.Router();
 
 const overwatch = require('./overwatch');
 const PlayerController = require('./controllers/PlayerController');
-const UploadController = require('./controllers/UploadController');
-
-const uploadHeader = process.env.NODE_ENV === 'production'
-  ? process.env.UPLOAD_HEADER : '';
 
 routes.post('/follow', celebrate({
   [Segments.HEADERS]: Joi.object({
@@ -53,20 +45,5 @@ routes.get('/feed/local', celebrate({
     page: Joi.number().valid().min(1).optional(),
   }),
 }), PlayerController.getLocalFeed);
-
-routes.post('/images', celebrate({
-  [Segments.HEADERS]: Joi.object({
-    authorization: Joi.string().required().equal(uploadHeader),
-  }).unknown(),
-}), upload.any(), UploadController.uploadImg);
-
-routes.delete('/images/:filename', celebrate({
-  [Segments.HEADERS]: Joi.object({
-    authorization: Joi.string().required().equal(uploadHeader),
-  }).unknown(),
-  [Segments.PARAMS]: Joi.object().keys({
-    filename: Joi.string().required(),
-  }),
-}), UploadController.deleteImg);
 
 module.exports = routes;

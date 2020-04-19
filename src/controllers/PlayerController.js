@@ -416,6 +416,17 @@ module.exports = {
     const playersList = {};
     const auth = await firebase.auth().verifyIdToken(authorization)
       .catch(() => res.status(400).send());
+
+    async function feedCompleted() {
+      if (specificFeeds.length >= 3) {
+        specificFeeds.forEach((feed) => {
+          finalFeed = finalFeed.concat(feed);
+        });
+        finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
+        res.json(finalFeed);
+      }
+    }
+
     if (auth.uid) {
       const following = (await firebase
         .database()
@@ -433,16 +444,15 @@ module.exports = {
             playersList[fKey(player.val())] = fVal(player.val());
           })));
       }
-      await Promise.all(Object.values(overwatch.roles).map(
-        async (role, i) => {
-          specificFeeds.push(await makeFeed(role, page, i === 0, playersList));
+
+      Object.values(overwatch.roles).forEach(
+        (role, i) => {
+          makeFeed(role, page, i === 0, playersList).then((feed) => {
+            specificFeeds.push(feed);
+            feedCompleted();
+          });
         },
-      ));
-      specificFeeds.forEach((feed) => {
-        finalFeed = finalFeed.concat(feed);
-      });
-      finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
-      res.json(finalFeed);
+      );
     }
   },
 
@@ -452,17 +462,24 @@ module.exports = {
     const specificFeeds = [];
     let finalFeed = [];
 
-    await Promise.all(Object.values(overwatch.roles).map(
-      async (role, i) => {
-        specificFeeds.push(await makeFeed(role, page, i === 0));
-      },
-    ));
+    async function feedCompleted() {
+      if (specificFeeds.length >= 3) {
+        specificFeeds.forEach((feed) => {
+          finalFeed = finalFeed.concat(feed);
+        });
+        finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
+        res.json(finalFeed);
+      }
+    }
 
-    specificFeeds.forEach((feed) => {
-      finalFeed = finalFeed.concat(feed);
-    });
-    finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
-    res.json(finalFeed);
+    Object.values(overwatch.roles).forEach(
+      (role, i) => {
+        makeFeed(role, page, i === 0).then((feed) => {
+          specificFeeds.push(feed);
+          feedCompleted();
+        });
+      },
+    );
   },
   /**
    * Gets following players

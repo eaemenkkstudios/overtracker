@@ -88,7 +88,7 @@ const cards = Object.freeze({
     main: {
       current: overwatch.player.MAIN.HERO.CURRENT,
       role: overwatch.player.MAIN.ROLE.CURRENT,
-      time: overwatch.player.MAIN.TIME.CURRENT,
+      time: overwatch.player.MAIN.TIME.UPDATED,
     },
   },
 });

@@ -567,6 +567,7 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                         return previousTimePlayed > currentTimePlayed ? previousValue
                           : currentValue;
                       }, '')].game.time_played;
+                  if (obj[key].length === 5) obj[key] = `00:${obj[key]}`;
                   break;
                 default:
                   break;

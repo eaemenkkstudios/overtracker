@@ -3,7 +3,7 @@ const firebase = require('firebase-admin');
 
 const overwatch = require('../overwatch');
 const {
-  fVal, fKey, objectClone, shuffle,
+  fVal, fKey, objectClone, shuffle, isObject,
 } = require('../util');
 
 const scoreCard = Object.freeze({
@@ -20,7 +20,25 @@ const scoreCard = Object.freeze({
   },
 });
 
-const highlightChance = 0.7;
+const scoreCardExtended = Object.freeze({
+  endorsement: overwatch.player.ENDORSEMENT.UPDATED,
+  games: {
+    played: overwatch.player.MATCHES.PLAYED.UPDATED,
+    won: overwatch.player.MATCHES.WON.UPDATED,
+  },
+  main: {
+    hero: overwatch.player.MAIN.HERO.UPDATED,
+    time: overwatch.player.MAIN.TIME.UPDATED,
+    role: overwatch.player.MAIN.ROLE.UPDATED,
+  },
+  rank: {
+    damage: overwatch.player.SR.DAMAGE.UPDATED,
+    support: overwatch.player.SR.SUPPORT.UPDATED,
+    tank: overwatch.player.SR.TANK.UPDATED,
+  },
+});
+
+const highlightChance = 0.75;
 
 const cards = Object.freeze({
   SUPPORT_UPDATE: {
@@ -72,8 +90,6 @@ const cards = Object.freeze({
       role: overwatch.player.MAIN.ROLE.CURRENT,
       time: overwatch.player.MAIN.TIME.CURRENT,
     },
-
-
   },
   HIGHLIGHT: {
     type: 'highlight',
@@ -93,10 +109,10 @@ const cards = Object.freeze({
   },
 });
 
-async function makeScore(tag, platform) {
+async function makeScore(tag, platform, extended) {
   const score = {
     date: new Date().getTime(),
-    ...objectClone(scoreCard),
+    ...objectClone(extended ? scoreCardExtended : scoreCard),
   };
   const success = await overwatch.fillObject(score, tag, platform, 1);
   return success ? score : undefined;
@@ -265,10 +281,13 @@ async function makeFeed(role, page, generic, customList) {
  * }} Friendly Score Object
  */
 function makeFriendlyScore(score) {
-  score.main = {
-    hero: score.main,
-    role: overwatch.heroes[score.main],
-  };
+  if (!isObject(score.main)) {
+    score.main = {
+      hero: score.main,
+      role: overwatch.heroes[score.main],
+    };
+  }
+
   Object.keys(score.rank).forEach((rank) => {
     const img = overwatch.getRankImageURL(score.rank[rank]);
     score.rank[rank] = {
@@ -301,7 +320,7 @@ async function registerBattleTag(tag, platform) {
     platformIndex = 0;
   }
   if (platformIndex < 0) return undefined;
-  const current = await makeScore(tag, platform);
+  const current = await makeScore(tag, platform, false);
   let finalStats = {};
   if (current) {
     finalStats = {
@@ -363,7 +382,7 @@ async function getOutdatedPlayers() {
  */
 async function updatePlayer(tag, platform) {
   const [newScore, newPlayer] = await Promise.all(
-    [makeScore(tag, platform), oversmash.player(tag)],
+    [makeScore(tag, platform, false), oversmash.player(tag)],
   );
   if (!newScore) return;
   await firebase
@@ -531,7 +550,7 @@ module.exports = {
           .once('value', async (snapshot) => {
             if (!snapshot.val()) return res.status(400).send();
             const { tag, platform, portrait } = fVal(snapshot.val());
-            const newScore = await makeScore(tag, platform);
+            const newScore = await makeScore(tag, platform, true);
             const stats = {
               tag,
               platform,
@@ -539,6 +558,9 @@ module.exports = {
               scores: [],
               now: makeFriendlyScore(newScore),
             };
+            if (fVal(snapshot.val()).current) {
+              stats.scores.push(makeFriendlyScore(fVal(snapshot.val()).current));
+            }
             if (fVal(snapshot.val()).scores) {
               fVal(snapshot.val()).scores.reverse().forEach((score) => {
                 stats.scores.push(makeFriendlyScore(score));

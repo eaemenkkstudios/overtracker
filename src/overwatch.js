@@ -1,6 +1,7 @@
 
 const oversmash = require('oversmash').default();
 const firebase = require('firebase-admin');
+const config = require('./config/config');
 
 const {
   isObject, isEmpty, fVal, iVal,
@@ -58,7 +59,6 @@ const heroes = Object.freeze({
   zenyatta: roles.SUPPORT,
 });
 
-const MAX_CACHE_LENGTH = 64;
 const playerCache = {};
 
 // Transforma uma request de informação na informação requisitada.
@@ -707,7 +707,7 @@ async function getPlayerInfo(tag, platform) {
     playerCache[`${tag}${platform}`].views += 1;
   } else {
     playerStats = await oversmash.playerStats(tag, platform);
-    if (Object.keys(playerCache).length >= MAX_CACHE_LENGTH) {
+    if (Object.keys(playerCache).length >= (config.maxBufferLength || 64)) {
       let lessPopular = Object.keys(playerCache)[0];
       Object.keys(playerCache).forEach((savedPlayer) => {
         if (iVal(playerCache, savedPlayer).views < iVal(playerCache, lessPopular)) {

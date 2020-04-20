@@ -2,7 +2,9 @@
 const oversmash = require('oversmash').default();
 const firebase = require('firebase-admin');
 
-const { isObject, isEmpty, fVal } = require('./util');
+const {
+  isObject, isEmpty, fVal, iVal,
+} = require('./util');
 
 const slope = {
   DECREASING: 'decreasing',
@@ -55,6 +57,9 @@ const heroes = Object.freeze({
   zarya: roles.TANK,
   zenyatta: roles.SUPPORT,
 });
+
+const MAX_CACHE_LENGTH = 64;
+const playerCache = {};
 
 // Transforma uma request de informação na informação requisitada.
 // Exemplo: player.SR.SUPPORT.CURRENT -> 2468
@@ -689,8 +694,35 @@ function getRankImageURL(rank) {
   return baseUrl + tier + suffix;
 }
 
+async function getPlayerInfo(tag, platform) {
+  let playerStats;
+  if (playerCache[`${tag}${platform}`]) {
+    const now = new Date().getDate();
+    // 1000 * 60 * 5 = 300.000ms
+    if (now - playerCache[`${tag}${platform}`].time >= 300000) {
+      playerStats = await oversmash.playerStats(tag, platform);
+      playerCache[`${tag}${platform}`].info = playerStats;
+      playerCache[`${tag}${platform}`].time = now;
+    } else playerStats = playerCache[`${tag}${platform}`].info;
+    playerCache[`${tag}${platform}`].views += 1;
+  } else {
+    playerStats = await oversmash.playerStats(tag, platform);
+    if (Object.keys(playerCache).length >= MAX_CACHE_LENGTH) {
+      let lessPopular = Object.keys(playerCache)[0];
+      Object.keys(playerCache).forEach((savedPlayer) => {
+        if (iVal(playerCache, savedPlayer).views < iVal(playerCache, lessPopular)) {
+          lessPopular = savedPlayer;
+        }
+      });
+      delete playerCache[lessPopular];
+    }
+    playerCache[`${tag}${platform}`] = { info: playerStats, time: new Date().getTime(), views: 1 };
+  }
+  return playerStats;
+}
+
 async function fillObject(obj, tag, platform, page) {
-  const playerStats = await oversmash.playerStats(tag, platform);
+  const playerStats = await getPlayerInfo(tag, platform);
   if (isEmpty(playerStats.stats.competitive)) return false;
   let exists = false;
   await firebase

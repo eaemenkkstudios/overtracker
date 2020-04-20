@@ -20,7 +20,7 @@ const scoreCard = Object.freeze({
   },
 });
 
-const highlightChance = 0.25;
+const highlightChance = 0.7;
 
 const cards = Object.freeze({
   SUPPORT_UPDATE: {
@@ -307,6 +307,7 @@ async function registerBattleTag(tag, platform) {
     finalStats = {
       tag,
       platform,
+      portrait: player.accounts[platformIndex].portrait,
       current,
       lastUpdate: current.date,
       scores: [],
@@ -361,7 +362,9 @@ async function getOutdatedPlayers() {
  * @param {String} platform Player's platform
  */
 async function updatePlayer(tag, platform) {
-  const newScore = await makeScore(tag, platform);
+  const [newScore, newPlayer] = await Promise.all(
+    [makeScore(tag, platform), oversmash.player(tag)],
+  );
   if (!newScore) return;
   await firebase
     .database()
@@ -378,6 +381,8 @@ async function updatePlayer(tag, platform) {
           [fKey(snapshot.val())]: {
             tag,
             platform,
+            portrait: newPlayer.accounts
+              .find((account) => account.platform === platform).portrait,
             scores: hasChanged ? [
               ...fVal(snapshot.val()).scores,
               fVal(snapshot.val()).current,
@@ -391,6 +396,8 @@ async function updatePlayer(tag, platform) {
           [fKey(snapshot.val())]: {
             tag,
             platform,
+            portrait: newPlayer.accounts
+              .find((account) => account.platform === platform).portrait,
             scores: hasChanged ? [fVal(snapshot.val()).current] : [],
             lastUpdate: new Date().getTime(),
             current: newScore,
@@ -410,22 +417,11 @@ module.exports = {
     let { page } = req.query;
     page = page || 1;
     const { authorization } = req.headers;
-    const specificFeeds = [];
     let finalFeed = [];
 
     const playersList = {};
     const auth = await firebase.auth().verifyIdToken(authorization)
       .catch(() => res.status(400).send());
-
-    async function feedCompleted() {
-      if (specificFeeds.length >= 3) {
-        specificFeeds.forEach((feed) => {
-          finalFeed = finalFeed.concat(feed);
-        });
-        finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
-        res.json(finalFeed);
-      }
-    }
 
     if (auth.uid) {
       const following = (await firebase
@@ -445,41 +441,30 @@ module.exports = {
           })));
       }
 
-      Object.values(overwatch.roles).forEach(
-        (role, i) => {
-          makeFeed(role, page, i === 0, playersList).then((feed) => {
-            specificFeeds.push(feed);
-            feedCompleted();
-          });
-        },
-      );
+      const feeds = await Promise.all(Object.values(overwatch.roles).map(
+        async (role, i) => makeFeed(role, page, i === 0, playersList),
+      ));
+      feeds.forEach((feed) => {
+        finalFeed = finalFeed.concat(feed);
+      });
+      finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
+      return res.json(finalFeed);
     }
   },
 
   async getGlobalFeed(req, res) {
     let { page } = req.query;
     page = page || 1;
-    const specificFeeds = [];
     let finalFeed = [];
 
-    async function feedCompleted() {
-      if (specificFeeds.length >= 3) {
-        specificFeeds.forEach((feed) => {
-          finalFeed = finalFeed.concat(feed);
-        });
-        finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
-        res.json(finalFeed);
-      }
-    }
-
-    Object.values(overwatch.roles).forEach(
-      (role, i) => {
-        makeFeed(role, page, i === 0).then((feed) => {
-          specificFeeds.push(feed);
-          feedCompleted();
-        });
-      },
-    );
+    const feeds = await Promise.all(Object.values(overwatch.roles).map(
+      async (role, i) => makeFeed(role, page, i === 0),
+    ));
+    feeds.forEach((feed) => {
+      finalFeed = finalFeed.concat(feed);
+    });
+    finalFeed = shuffle(finalFeed.filter((v, i, o) => o.indexOf(v) === i));
+    return res.json(finalFeed);
   },
   /**
    * Gets following players
@@ -510,6 +495,7 @@ module.exports = {
                   if (tagIds.indexOf(player) !== -1) {
                     players.push({
                       id: player,
+                      portrait: playersInfo[player].portrait,
                       platform: overwatch.friendlyPlatforms[(playersInfo[player].platform)],
                       tag: playersInfo[player].tag,
                     });

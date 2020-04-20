@@ -496,6 +496,8 @@ module.exports = {
                     players.push({
                       id: player,
                       portrait: playersInfo[player].portrait,
+                      endorsement: playersInfo[player].current.endorsement,
+                      role: overwatch.heroes[playersInfo[player].current.main],
                       platform: overwatch.friendlyPlatforms[(playersInfo[player].platform)],
                       tag: playersInfo[player].tag,
                     });

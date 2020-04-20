@@ -540,7 +540,7 @@ module.exports = {
               now: makeFriendlyScore(newScore),
             };
             if (fVal(snapshot.val()).scores) {
-              fVal(snapshot.val()).scores.forEach((score) => {
+              fVal(snapshot.val()).scores.reverse().forEach((score) => {
                 stats.scores.push(makeFriendlyScore(score));
               });
             }

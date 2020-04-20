@@ -530,11 +530,12 @@ module.exports = {
           .equalTo(tagId)
           .once('value', async (snapshot) => {
             if (!snapshot.val()) return res.status(400).send();
-            const { tag, platform } = fVal(snapshot.val());
+            const { tag, platform, portrait } = fVal(snapshot.val());
             const newScore = await makeScore(tag, platform);
             const stats = {
               tag,
               platform,
+              portrait,
               scores: [],
               now: makeFriendlyScore(newScore),
             };

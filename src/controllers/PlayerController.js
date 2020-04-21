@@ -109,12 +109,12 @@ const cards = Object.freeze({
   },
 });
 
-async function makeScore(tag, platform, extended) {
+async function makeScore(tag, platform, extended, forceUpdate) {
   const score = {
     date: new Date().getTime(),
     ...objectClone(extended ? scoreCardExtended : scoreCard),
   };
-  const success = await overwatch.fillObject(score, tag, platform, 1);
+  const success = await overwatch.fillObject(score, tag, platform, 1, forceUpdate);
   return success ? score : undefined;
 }
 
@@ -232,7 +232,7 @@ async function makeFeed(role, page, generic, customList) {
       }
       await Promise.all(cardArray.map(async (card) => {
         const success = await overwatch
-          .fillObject(card, players[key].tag, players[key].platform, page);
+          .fillObject(card, players[key].tag, players[key].platform, page, false);
         if (success === true) finalCards.push(objectClone(card));
       }));
     }
@@ -320,7 +320,7 @@ async function registerBattleTag(tag, platform) {
     platformIndex = 0;
   }
   if (platformIndex < 0) return undefined;
-  const current = await makeScore(tag, platform, false);
+  const current = await makeScore(tag, platform, false, true);
   let finalStats = {};
   if (current) {
     finalStats = {
@@ -382,7 +382,7 @@ async function getOutdatedPlayers() {
  */
 async function updatePlayer(tag, platform) {
   const [newScore, newPlayer] = await Promise.all(
-    [makeScore(tag, platform, false), oversmash.player(tag)],
+    [makeScore(tag, platform, false, true), oversmash.player(tag)],
   );
   if (!newScore) return;
   await firebase
@@ -550,7 +550,7 @@ module.exports = {
           .once('value', async (snapshot) => {
             if (!snapshot.val()) return res.status(400).send();
             const { tag, platform, portrait } = fVal(snapshot.val());
-            const newScore = await makeScore(tag, platform, true);
+            const newScore = await makeScore(tag, platform, true, true);
             const stats = {
               tag,
               platform,

@@ -694,12 +694,12 @@ function getRankImageURL(rank) {
   return baseUrl + tier + suffix;
 }
 
-async function getPlayerInfo(tag, platform) {
+async function getPlayerInfo(tag, platform, forceUpdate) {
   let playerStats;
   if (playerCache[`${tag}${platform}`]) {
     const now = new Date().getDate();
     // 1000 * 60 * 5 = 300.000ms
-    if (now - playerCache[`${tag}${platform}`].time >= 300000) {
+    if (now - playerCache[`${tag}${platform}`].time >= 300000 || forceUpdate === true) {
       playerStats = await oversmash.playerStats(tag, platform);
       playerCache[`${tag}${platform}`].info = playerStats;
       playerCache[`${tag}${platform}`].time = now;
@@ -721,8 +721,8 @@ async function getPlayerInfo(tag, platform) {
   return playerStats;
 }
 
-async function fillObject(obj, tag, platform, page) {
-  const playerStats = await getPlayerInfo(tag, platform);
+async function fillObject(obj, tag, platform, page, forceUpdate) {
+  const playerStats = await getPlayerInfo(tag, platform, forceUpdate);
   if (isEmpty(playerStats.stats.competitive)) return false;
   let exists = false;
   await firebase

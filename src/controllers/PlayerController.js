@@ -511,6 +511,7 @@ module.exports = {
                 const tagIds = Object.keys(followedPlayers).map((id) => followedPlayers[id]);
                 const players = [];
                 Object.keys(playersInfo).forEach((player) => {
+                  if (!playersInfo[player].current) return;
                   if (tagIds.indexOf(player) !== -1) {
                     players.push({
                       id: player,

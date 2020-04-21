@@ -33,6 +33,7 @@ routes.get('/following', celebrate({
 
 routes.get('/feed/global', celebrate({
   [Segments.QUERY]: Joi.object().keys({
+    time: Joi.number().valid().min(1).optional(),
     page: Joi.number().valid().min(1).optional(),
   }),
 }), PlayerController.getGlobalFeed);
@@ -42,6 +43,7 @@ routes.get('/feed/local', celebrate({
     authorization: Joi.string().required(),
   }).unknown(),
   [Segments.QUERY]: Joi.object().keys({
+    time: Joi.number().valid().min(1).optional(),
     page: Joi.number().valid().min(1).optional(),
   }),
 }), PlayerController.getLocalFeed);

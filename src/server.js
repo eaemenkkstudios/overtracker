@@ -28,11 +28,12 @@ app.use('/images', express.static(path.resolve(__dirname, '..', 'uploads')));
 app.use(routes);
 app.use(errors());
 
-
+/*
 updateOutdatedPlayers();
 setInterval(async () => {
   updateOutdatedPlayers();
 }, 86400000 / 4); // 1000 * 60 * 60 * 24 = 86400000 = 24hrs
+*/
 
 app.listen(process.env.PORT || 8080, () => {
   console.log(`Listening to port ${process.env.PORT || 8080}`);

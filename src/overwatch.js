@@ -1,4 +1,3 @@
-
 const oversmash = require('oversmash').default();
 const firebase = require('firebase-admin');
 const config = require('./config/config');
@@ -63,11 +62,11 @@ const playerCache = {};
 
 // Transforma uma request de informação na informação requisitada.
 // Exemplo: player.SR.SUPPORT.CURRENT -> 2468
-function stringToInfo(obj, oversmashStats, firebaseStats, page) {
-  if (page < 1) return;
+function stringToInfo(obj, oversmashStats, firebaseStats, time) {
+  if (time < 1) return;
   Object.keys(obj).forEach((key) => {
     if (isObject(obj[key])) {
-      stringToInfo(obj[key], oversmashStats, firebaseStats, page);
+      stringToInfo(obj[key], oversmashStats, firebaseStats, time);
     } else if (typeof obj[key] === 'string') {
       const args = (String)(obj[key]).split('_');
       switch (args[args.length - 1]) {
@@ -76,12 +75,16 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
             case 'endorsement':
               switch (args[1]) {
                 case 'previous':
-                  obj[key] = firebaseStats.scores[firebaseStats.scores.length - page]
+                  if (!firebaseStats.scores
+                    || firebaseStats.scores.length < time) break;
+                  obj[key] = firebaseStats.scores[firebaseStats.scores.length - time]
                     .endorsement;
                   break;
                 case 'current':
-                  obj[key] = page === 1 ? firebaseStats.current.endorsement
-                    : firebaseStats.scores[firebaseStats.scores.length - page + 1].endorsement;
+                  if (time > 1 && (!firebaseStats.scores
+                    || !firebaseStats.scores.length < time - 1)) break;
+                  obj[key] = time === 1 ? firebaseStats.current.endorsement
+                    : firebaseStats.scores[firebaseStats.scores.length - time + 1].endorsement;
                   break;
                 default:
                   break;
@@ -92,56 +95,58 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case 'highest':
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = Math.max(firebaseStats.scores[firebaseStats.scores.length - page]
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = Math.max(firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.damage,
-                      firebaseStats.scores[firebaseStats.scores.length - page]
+                      firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.support,
-                      firebaseStats.scores[firebaseStats.scores.length - page]
+                      firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.tank);
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
-                      obj[key] = page === 1 ? Math.max(firebaseStats.current
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
+                      obj[key] = time === 1 ? Math.max(firebaseStats.current
                         .rank.damage,
                       firebaseStats.current
                         .rank.support,
                       firebaseStats.current
                         .rank.tank)
-                        : Math.max(firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        : Math.max(firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.damage,
-                        firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.support,
-                        firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.tank);
                       break;
                     case 'slope':
-                      if (!firebaseStats.scores) {
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) {
                         obj[key] = slope.TIED;
                         break;
                       }
-                      switch (page === 1 ? Math.max(firebaseStats.current
+                      switch (time === 1 ? Math.max(firebaseStats.current
                         .rank.damage,
                       firebaseStats.current
                         .rank.support,
                       firebaseStats.current
                         .rank.tank)
-                        : Math.max(firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        : Math.max(firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.damage,
-                        firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.support,
-                        firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.tank)) {
-                        case (page === 1 ? firebaseStats.current
+                        case (time === 1 ? firebaseStats.current
                           .rank.support
-                          : firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                          : firebaseStats.scores[firebaseStats.scores.length - time + 1]
                             .rank.support):
-                          obj[key] = page === 1 ? (firebaseStats.current
+                          obj[key] = time === 1 ? (firebaseStats.current
                             .rank.support)
-                            : (firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                            : (firebaseStats.scores[firebaseStats.scores.length - time + 1]
                               .rank.support)
-                            - firebaseStats.scores[firebaseStats.scores.length - page]
+                            - firebaseStats.scores[firebaseStats.scores.length - time]
                               .rank.support;
                           if (obj[key] > 0) {
                             obj[key] = slope.INCREASING;
@@ -151,15 +156,15 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                             obj[key] = slope.TIED;
                           }
                           break;
-                        case (page === 1 ? firebaseStats.current
+                        case (time === 1 ? firebaseStats.current
                           .rank.damage
-                          : firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                          : firebaseStats.scores[firebaseStats.scores.length - time + 1]
                             .rank.damage):
-                          obj[key] = page === 1 ? (firebaseStats.current
+                          obj[key] = time === 1 ? (firebaseStats.current
                             .rank.damage)
-                            : (firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                            : (firebaseStats.scores[firebaseStats.scores.length - time + 1]
                               .rank.damage)
-                            - firebaseStats.scores[firebaseStats.scores.length - page]
+                            - firebaseStats.scores[firebaseStats.scores.length - time]
                               .rank.damage;
                           if (obj[key] > 0) {
                             obj[key] = slope.INCREASING;
@@ -169,15 +174,15 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                             obj[key] = slope.TIED;
                           }
                           break;
-                        case (page === 1 ? firebaseStats.current
+                        case (time === 1 ? firebaseStats.current
                           .rank.tank
-                          : firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                          : firebaseStats.scores[firebaseStats.scores.length - time + 1]
                             .rank.tank):
-                          obj[key] = page === 1 ? (firebaseStats.current
+                          obj[key] = time === 1 ? (firebaseStats.current
                             .rank.tank)
-                            : (firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                            : (firebaseStats.scores[firebaseStats.scores.length - time + 1]
                               .rank.tank)
-                            - firebaseStats.scores[firebaseStats.scores.length - page]
+                            - firebaseStats.scores[firebaseStats.scores.length - time]
                               .rank.tank;
                           if (obj[key] > 0) {
                             obj[key] = slope.INCREASING;
@@ -198,35 +203,37 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case 'main':
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - page]
-                        .rank[heroes[page === 1 ? firebaseStats.current.main
-                          : firebaseStats.scores[firebaseStats.scores.length - page + 1].main]];
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - time]
+                        .rank[heroes[time === 1 ? firebaseStats.current.main
+                          : firebaseStats.scores[firebaseStats.scores.length - time + 1].main]];
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
-                      obj[key] = page === 1 ? firebaseStats.current
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
+                      obj[key] = time === 1 ? firebaseStats.current
                         .rank[heroes[firebaseStats.current.main]]
-                        : firebaseStats.scores[firebaseStats.scores.length - page + 1]
-                          .rank[heroes[firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        : firebaseStats.scores[firebaseStats.scores.length - time + 1]
+                          .rank[heroes[firebaseStats.scores[firebaseStats.scores.length - time + 1]
                             .main]];
                       break;
                     case 'slope':
-                      if (!firebaseStats.scores) {
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) {
                         obj[key] = slope.TIED;
                         break;
                       }
-                      obj[key] = page === 1 ? (firebaseStats.current
+                      obj[key] = time === 1 ? (firebaseStats.current
                         .rank[heroes[firebaseStats.current.main]]
-                        - firebaseStats.scores[firebaseStats.scores.length - page]
+                        - firebaseStats.scores[firebaseStats.scores.length - time]
                           .rank[heroes[firebaseStats.current.main]])
-                        : (firebaseStats.scores[firebaseStats.scores.length - page + 1]
-                          .rank[heroes[firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        : (firebaseStats.scores[firebaseStats.scores.length - time + 1]
+                          .rank[heroes[firebaseStats.scores[firebaseStats.scores.length - time + 1]
                             .main]]
-                            - firebaseStats.scores[firebaseStats.scores.length - page]
+                            - firebaseStats.scores[firebaseStats.scores.length - time]
                               .rank[heroes[firebaseStats
-                                .scores[firebaseStats.scores.length - page + 1]
+                                .scores[firebaseStats.scores.length - time + 1]
                                 .main]]);
                       if (obj[key] > 0) {
                         obj[key] = slope.INCREASING;
@@ -243,27 +250,29 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case roles.SUPPORT:
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - page]
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.support;
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
-                      obj[key] = page === 1 ? firebaseStats.current
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
+                      obj[key] = time === 1 ? firebaseStats.current
                         .rank.support
-                        : firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        : firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.support;
                       break;
                     case 'slope':
-                      if (!firebaseStats.scores) {
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) {
                         obj[key] = slope.TIED;
                         break;
                       }
-                      obj[key] = (page === 1 ? firebaseStats.current
+                      obj[key] = (time === 1 ? firebaseStats.current
                         .rank.support
-                        : firebaseStats.scores[firebaseStats.scores.length - page + 1]
-                          .rank.support) - firebaseStats.scores[firebaseStats.scores.length - page]
+                        : firebaseStats.scores[firebaseStats.scores.length - time + 1]
+                          .rank.support) - firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.support;
                       if (obj[key] > 0) {
                         obj[key] = slope.INCREASING;
@@ -280,27 +289,29 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case roles.DAMAGE:
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - page]
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.damage;
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
-                      obj[key] = page === 1 ? firebaseStats.current
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
+                      obj[key] = time === 1 ? firebaseStats.current
                         .rank.damage
-                        : firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        : firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.damage;
                       break;
                     case 'slope':
-                      if (!firebaseStats.scores) {
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) {
                         obj[key] = slope.TIED;
                         break;
                       }
-                      obj[key] = (page === 1 ? firebaseStats.current
+                      obj[key] = (time === 1 ? firebaseStats.current
                         .rank.damage
-                        : firebaseStats.scores[firebaseStats.scores.length - page + 1]
-                          .rank.damage) - firebaseStats.scores[firebaseStats.scores.length - page]
+                        : firebaseStats.scores[firebaseStats.scores.length - time + 1]
+                          .rank.damage) - firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.damage;
                       if (obj[key] > 0) {
                         obj[key] = slope.INCREASING;
@@ -317,27 +328,29 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case roles.TANK:
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - page]
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.tank;
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
-                      obj[key] = page === 1 ? firebaseStats.current
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
+                      obj[key] = time === 1 ? firebaseStats.current
                         .rank.tank
-                        : firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                        : firebaseStats.scores[firebaseStats.scores.length - time + 1]
                           .rank.tank;
                       break;
                     case 'slope':
-                      if (!firebaseStats.scores) {
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) {
                         obj[key] = slope.TIED;
                         break;
                       }
-                      obj[key] = (page === 1 ? firebaseStats.current
+                      obj[key] = (time === 1 ? firebaseStats.current
                         .rank.tank
-                        : firebaseStats.scores[firebaseStats.scores.length - page + 1]
-                          .rank.tank) - firebaseStats.scores[firebaseStats.scores.length - page]
+                        : firebaseStats.scores[firebaseStats.scores.length - time + 1]
+                          .rank.tank) - firebaseStats.scores[firebaseStats.scores.length - time]
                         .rank.tank;
                       if (obj[key] > 0) {
                         obj[key] = slope.INCREASING;
@@ -360,13 +373,14 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case 'played':
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - page]
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - time]
                         .games.played || 0;
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
                       obj[key] = firebaseStats.current
                         .games.played || 0;
                       break;
@@ -377,13 +391,14 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case 'won':
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - page]
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - time]
                         .games.won || 0;
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
                       obj[key] = firebaseStats.current
                         .games.won || 0;
                       break;
@@ -398,36 +413,38 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
             case 'winrate':
               switch (args[1]) {
                 case 'previous':
-                  if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                  obj[key] = `${(((firebaseStats.scores[firebaseStats.scores.length - page]
+                  if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                  obj[key] = `${(((firebaseStats.scores[firebaseStats.scores.length - time]
                     .games.won || 0)
-              / firebaseStats.scores[firebaseStats.scores.length - page]
+              / firebaseStats.scores[firebaseStats.scores.length - time]
                 .games.played || 1) * 100).toFixed(2)}%`;
                   break;
                 case 'current':
-                  if (page === 1 ? !firebaseStats.current
-                    : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
-                  obj[key] = `${(((page === 1 ? firebaseStats.current
+                  if (time === 1 ? !firebaseStats.current
+                    : !firebaseStats.scores[firebaseStats.scores.length - time + 1]) break;
+                  obj[key] = `${(((time === 1 ? firebaseStats.current
                     .games.won || 0
-                    : firebaseStats.scores[firebaseStats.scores.length - page + 1].games.won || 0)
+                    : firebaseStats.scores[firebaseStats.scores.length - time + 1].games.won || 0)
               / firebaseStats.current
                 .games.played || 1) * 100).toFixed(2)}%`;
                   break;
                 case 'slope':
-                  if (!firebaseStats.scores) {
+                  if (!firebaseStats.scores
+                    || firebaseStats.scores.length < time) {
                     obj[key] = slope.TIED;
                     break;
                   }
-                  obj[key] = page === 1 ? ((firebaseStats.current
+                  obj[key] = time === 1 ? ((firebaseStats.current
                     .games.won || 0)
               / firebaseStats.current
-                .games.played || 1) : ((firebaseStats.scores[firebaseStats.scores.length - page + 1]
+                .games.played || 1) : ((firebaseStats.scores[firebaseStats.scores.length - time + 1]
                     .games.won || 0)
-            / (firebaseStats.scores[firebaseStats.scores.length - page + 1]
+            / (firebaseStats.scores[firebaseStats.scores.length - time + 1]
               .games.played || 1))
-                - (firebaseStats.scores[firebaseStats.scores.length - page]
+                - (firebaseStats.scores[firebaseStats.scores.length - time]
                   .games.won || 0)
-            / firebaseStats.scores[firebaseStats.scores.length - page]
+            / firebaseStats.scores[firebaseStats.scores.length - time]
               .games.played || 1;
                   if (obj[key] > 0) {
                     obj[key] = slope.INCREASING;
@@ -446,15 +463,16 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case 'hero':
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - page]
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = firebaseStats.scores[firebaseStats.scores.length - time]
                         .main || '';
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
-                      obj[key] = page === 1 ? firebaseStats.current
-                        .main || '' : firebaseStats.scores[firebaseStats.scores.length - page + 1].main;
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
+                      obj[key] = time === 1 ? firebaseStats.current
+                        .main || '' : firebaseStats.scores[firebaseStats.scores.length - time + 1].main;
                       break;
                     default:
                       break;
@@ -463,15 +481,16 @@ function stringToInfo(obj, oversmashStats, firebaseStats, page) {
                 case 'role':
                   switch (args[2]) {
                     case 'previous':
-                      if (!firebaseStats.scores || firebaseStats.scores.length < page) break;
-                      obj[key] = heroes[firebaseStats.scores[firebaseStats.scores.length - page]
+                      if (!firebaseStats.scores
+                        || firebaseStats.scores.length < time) break;
+                      obj[key] = heroes[firebaseStats.scores[firebaseStats.scores.length - time]
                         .main] || '';
                       break;
                     case 'current':
-                      if (page === 1 ? !firebaseStats.current
-                        : !firebaseStats.scores[firebaseStats.scores.length - page + 1]) break;
-                      obj[key] = page === 1 ? heroes[firebaseStats.current
-                        .main] || '' : heroes[firebaseStats.scores[firebaseStats.scores.length - page + 1].main];
+                      if (time > 1 && (!firebaseStats.scores
+                        || !firebaseStats.scores.length < time - 1)) break;
+                      obj[key] = time === 1 ? heroes[firebaseStats.current
+                        .main] || '' : heroes[firebaseStats.scores[firebaseStats.scores.length - time + 1].main];
                       break;
                     default:
                       break;
@@ -721,7 +740,7 @@ async function getPlayerInfo(tag, platform, forceUpdate) {
   return playerStats;
 }
 
-async function fillObject(obj, tag, platform, page, forceUpdate) {
+async function fillObject(obj, tag, platform, time, forceUpdate) {
   const playerStats = await getPlayerInfo(tag, platform, forceUpdate);
   if (isEmpty(playerStats.stats.competitive)) return false;
   let exists = false;
@@ -732,7 +751,7 @@ async function fillObject(obj, tag, platform, page, forceUpdate) {
     .equalTo(tag) // ADICIONAR VERIFICAÇÃO DE PLATAFORMA!!!
     .once('value', async (snapshot) => {
       if (snapshot.val()) {
-        stringToInfo(obj, playerStats, fVal(snapshot.val()), page);
+        stringToInfo(obj, playerStats, fVal(snapshot.val()), time);
         exists = true;
       }
     });

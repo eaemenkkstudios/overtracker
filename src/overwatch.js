@@ -507,7 +507,8 @@ function stringToInfo(obj, oversmashStats, firebaseStats, time) {
         default:
           break;
         case sources.OVERSMASH:
-          if (!oversmashStats.stats || !oversmashStats.stats.competitive) break;
+          if (!oversmashStats.stats || !oversmashStats.stats.competitive.all) break;
+          console.log(oversmashStats.stats.competitive);
           switch (args[0]) {
             case 'endorsement':
               obj[key] = oversmashStats.stats.endorsement_level;

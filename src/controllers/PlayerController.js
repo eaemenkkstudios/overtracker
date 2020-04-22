@@ -40,7 +40,7 @@ const scoreCardExtended = Object.freeze({
   },
 });
 
-const highlightChance = 0.75;
+// const highlightChance = 0.75;
 
 const cards = Object.freeze({
   SUPPORT_UPDATE: {
@@ -545,6 +545,9 @@ module.exports = {
                 });
                 res.status(200).json(players);
               });
+          })
+          .then((snap) => {
+            if (!snap.val()) res.status(200).json([]);
           });
       })
       .catch(() => res.status(401).send());

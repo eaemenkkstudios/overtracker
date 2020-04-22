@@ -507,80 +507,52 @@ function stringToInfo(obj, oversmashStats, firebaseStats, time) {
         default:
           break;
         case sources.OVERSMASH:
-          if (!oversmashStats.stats || !oversmashStats.stats.competitive.all) break;
-          switch (args[0]) {
-            case 'endorsement':
-              obj[key] = oversmashStats.stats.endorsement_level;
-              break;
-            case 'sr':
-              switch (args[1]) {
-                case 'highest':
-                  obj[key] = Math.max(oversmashStats.stats.competitive_rank.damage,
-                    oversmashStats.stats.competitive_rank.support,
-                    oversmashStats.stats.competitive_rank.tank);
-                  break;
-                case roles.SUPPORT:
-                  obj[key] = oversmashStats.stats.competitive_rank.support || 0;
-                  break;
-                case roles.DAMAGE:
-                  obj[key] = oversmashStats.stats.competitive_rank.damage || 0;
-                  break;
-                case roles.TANK:
-                  obj[key] = oversmashStats.stats.competitive_rank.tank || 0;
-                  break;
-                default:
-                  break;
-              }
-              break;
-            case 'matches':
-              switch (args[1]) {
-                case 'played':
-                  obj[key] = oversmashStats.stats.competitive.all.game.games_played || 0;
-                  break;
-                case 'won':
-                  obj[key] = oversmashStats.stats.competitive.all.game.games_won || 0;
-                  break;
-                default:
-                  break;
-              }
-              break;
-            case 'winrate':
-              obj[key] = (`${(((oversmashStats.stats.competitive.all.game.games_won || 0)
+          try {
+            if (!oversmashStats || isEmpty(oversmashStats.stats.competitive)) break;
+            switch (args[0]) {
+              case 'endorsement':
+                obj[key] = oversmashStats.stats.endorsement_level;
+                break;
+              case 'sr':
+                switch (args[1]) {
+                  case 'highest':
+                    obj[key] = Math.max(oversmashStats.stats.competitive_rank.damage,
+                      oversmashStats.stats.competitive_rank.support,
+                      oversmashStats.stats.competitive_rank.tank);
+                    break;
+                  case roles.SUPPORT:
+                    obj[key] = oversmashStats.stats.competitive_rank.support || 0;
+                    break;
+                  case roles.DAMAGE:
+                    obj[key] = oversmashStats.stats.competitive_rank.damage || 0;
+                    break;
+                  case roles.TANK:
+                    obj[key] = oversmashStats.stats.competitive_rank.tank || 0;
+                    break;
+                  default:
+                    break;
+                }
+                break;
+              case 'matches':
+                switch (args[1]) {
+                  case 'played':
+                    obj[key] = oversmashStats.stats.competitive.all.game.games_played || 0;
+                    break;
+                  case 'won':
+                    obj[key] = oversmashStats.stats.competitive.all.game.games_won || 0;
+                    break;
+                  default:
+                    break;
+                }
+                break;
+              case 'winrate':
+                obj[key] = (`${(((oversmashStats.stats.competitive.all.game.games_won || 0)
               / oversmashStats.stats.competitive.all.game.games_played || 1) * 100).toFixed(2)}%`);
-              break;
-            case 'main':
-              switch (args[1]) {
-                case 'hero':
-                  obj[key] = Object.keys(oversmashStats.stats.competitive)
-                    .reduce((previousValue, currentValue) => {
-                      if (previousValue === '' || previousValue === 'all') return currentValue;
-                      let previousTimePlayed = oversmashStats.stats.competitive[previousValue]
-                        .game.time_played;
-                      let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
-                        .game.time_played;
-                      if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
-                      if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
-                      return previousTimePlayed > currentTimePlayed ? previousValue
-                        : currentValue;
-                    }, '');
-                  break;
-                case 'role':
-                  obj[key] = heroes[Object.keys(oversmashStats.stats.competitive)
-                    .reduce((previousValue, currentValue) => {
-                      if (previousValue === '' || previousValue === 'all') return currentValue;
-                      let previousTimePlayed = oversmashStats.stats.competitive[previousValue]
-                        .game.time_played;
-                      let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
-                        .game.time_played;
-                      if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
-                      if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
-                      return previousTimePlayed > currentTimePlayed ? previousValue
-                        : currentValue;
-                    }, '')];
-                  break;
-                case 'time':
-                  obj[key] = oversmashStats.stats
-                    .competitive[Object.keys(oversmashStats.stats.competitive)
+                break;
+              case 'main':
+                switch (args[1]) {
+                  case 'hero':
+                    obj[key] = Object.keys(oversmashStats.stats.competitive)
                       .reduce((previousValue, currentValue) => {
                         if (previousValue === '' || previousValue === 'all') return currentValue;
                         let previousTimePlayed = oversmashStats.stats.competitive[previousValue]
@@ -591,15 +563,47 @@ function stringToInfo(obj, oversmashStats, firebaseStats, time) {
                         if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
                         return previousTimePlayed > currentTimePlayed ? previousValue
                           : currentValue;
-                      }, '')].game.time_played;
-                  if (obj[key].length === 5) obj[key] = `00:${obj[key]}`;
-                  break;
-                default:
-                  break;
-              }
-              break;
-            default:
-              break;
+                      }, '');
+                    break;
+                  case 'role':
+                    obj[key] = heroes[Object.keys(oversmashStats.stats.competitive)
+                      .reduce((previousValue, currentValue) => {
+                        if (previousValue === '' || previousValue === 'all') return currentValue;
+                        let previousTimePlayed = oversmashStats.stats.competitive[previousValue]
+                          .game.time_played;
+                        let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
+                          .game.time_played;
+                        if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
+                        if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
+                        return previousTimePlayed > currentTimePlayed ? previousValue
+                          : currentValue;
+                      }, '')];
+                    break;
+                  case 'time':
+                    obj[key] = oversmashStats.stats
+                      .competitive[Object.keys(oversmashStats.stats.competitive)
+                        .reduce((previousValue, currentValue) => {
+                          if (previousValue === '' || previousValue === 'all') return currentValue;
+                          let previousTimePlayed = oversmashStats.stats.competitive[previousValue]
+                            .game.time_played;
+                          let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
+                            .game.time_played;
+                          if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
+                          if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
+                          return previousTimePlayed > currentTimePlayed ? previousValue
+                            : currentValue;
+                        }, '')].game.time_played;
+                    if (obj[key].length === 5) obj[key] = `00:${obj[key]}`;
+                    break;
+                  default:
+                    break;
+                }
+                break;
+              default:
+                break;
+            }
+          } catch (e) {
+            console.log(oversmashStats.stats.competitive);
           }
           break;
       }

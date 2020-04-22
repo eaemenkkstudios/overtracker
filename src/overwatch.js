@@ -435,17 +435,17 @@ function stringToInfo(obj, oversmashStats, firebaseStats, time) {
                     obj[key] = slope.TIED;
                     break;
                   }
-                  obj[key] = time === 1 ? ((firebaseStats.current
+                  obj[key] = (time === 1 ? ((firebaseStats.current
                     .games.won || 0)
               / firebaseStats.current
                 .games.played || 1) : ((firebaseStats.scores[firebaseStats.scores.length - time + 1]
                     .games.won || 0)
             / (firebaseStats.scores[firebaseStats.scores.length - time + 1]
-              .games.played || 1))
-                - (firebaseStats.scores[firebaseStats.scores.length - time]
+              .games.played || 1)))
+                - ((firebaseStats.scores[firebaseStats.scores.length - time]
                   .games.won || 0)
             / firebaseStats.scores[firebaseStats.scores.length - time]
-              .games.played || 1;
+              .games.played || 1);
                   if (obj[key] > 0) {
                     obj[key] = slope.INCREASING;
                   } else if (obj[key] < 0) {

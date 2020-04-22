@@ -559,6 +559,7 @@ function stringToInfo(obj, oversmashStats, firebaseStats, time) {
                           .game.time_played;
                         let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
                           .game.time_played;
+                        if (typeof currentTimePlayed === 'undefined') return previousValue;
                         if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
                         if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
                         return previousTimePlayed > currentTimePlayed ? previousValue
@@ -573,6 +574,7 @@ function stringToInfo(obj, oversmashStats, firebaseStats, time) {
                           .game.time_played;
                         let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
                           .game.time_played;
+                        if (typeof currentTimePlayed === 'undefined') return previousValue;
                         if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
                         if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
                         return previousTimePlayed > currentTimePlayed ? previousValue
@@ -588,6 +590,7 @@ function stringToInfo(obj, oversmashStats, firebaseStats, time) {
                             .game.time_played;
                           let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
                             .game.time_played;
+                          if (typeof currentTimePlayed === 'undefined') return previousValue;
                           if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
                           if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
                           return previousTimePlayed > currentTimePlayed ? previousValue

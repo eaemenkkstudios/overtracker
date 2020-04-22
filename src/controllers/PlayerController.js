@@ -481,7 +481,7 @@ module.exports = {
           % Object.keys(overwatch.roles).length, page, playersList),
       ));
       feeds.forEach((feed) => {
-        finalFeed = finalFeed.concat(feed);
+        finalFeed = shuffle(finalFeed.concat(feed));
       });
       finalFeed = finalFeed.filter((v, i, o) => o.indexOf(v) === i);
       return res.json(finalFeed);
@@ -498,7 +498,7 @@ module.exports = {
       async (role) => makeFeed(role, time, true, page),
     ));
     feeds.forEach((feed) => {
-      finalFeed = finalFeed.concat(feed);
+      finalFeed = shuffle(finalFeed.concat(feed));
     });
     finalFeed = finalFeed.filter((v, i, o) => o.indexOf(v) === i);
     return res.json(finalFeed);
@@ -569,7 +569,7 @@ module.exports = {
           .once('value', async (snapshot) => {
             if (!snapshot.val()) return res.status(400).send();
             const { tag, platform, portrait } = fVal(snapshot.val());
-            const newScore = await makeScore(tag, platform, true, true);
+            const newScore = await makeScore(tag, platform, true, false);
             const stats = {
               tag,
               platform,

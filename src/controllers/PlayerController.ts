@@ -1,3 +1,4 @@
+import { Response, Request } from 'express';
 import oversmash from 'oversmash';
 import overwatch from '../overwatch';
 
@@ -83,7 +84,7 @@ const cards = Object.freeze({
     current: {
       hero: overwatch.player.MAIN.HERO.CURRENT,
       role: overwatch.player.MAIN.ROLE.CURRENT,
-      time: overwatch.player.MAIN.TIME.CURRENT,
+      // time: overwatch.player.MAIN.TIME.CURRENT,
     },
   },
   HIGHLIGHT: {
@@ -104,7 +105,7 @@ const cards = Object.freeze({
   },
 });
 
-async function makeScore(tag, platform, extended, forceUpdate) {
+async function makeScore(tag: string, platform: string, extended: boolean, forceUpdate: boolean) {
   const score = {
     date: new Date().getTime(),
     ...objectClone(extended ? scoreCardExtended : scoreCard),
@@ -113,7 +114,7 @@ async function makeScore(tag, platform, extended, forceUpdate) {
   return success ? score : undefined;
 }
 
-async function makeFeed(role, time, generic, page, customList) {
+async function makeFeed(role: string, time: number, generic: boolean, page: number, customList) {
   const finalCards = [];
   let players = {};
   if (customList) {
@@ -309,9 +310,9 @@ function makeFriendlyScore(score) {
  * @param {String} platform Player's platform
  * @returns {*} The database referece or `undefined`
  */
-async function registerBattleTag(tag, platform) {
+async function registerBattleTag(tag: string, platform: string) {
   platform = platform || 'pc';
-  const player = await oversmash.player(tag, platform);
+  const player = await oversmash().player(tag, platform);
   if (!player.accounts.length) return undefined;
   let platformIndex = -1;
   if (platform) {
@@ -384,7 +385,7 @@ async function getOutdatedPlayers() {
  * @param {String} tag Player's battletag
  * @param {String} platform Player's platform
  */
-async function updatePlayer(tag, platform) {
+async function updatePlayer(tag: string, platform: string) {
   const [newScore, newPlayer] = await Promise.all(
     [makeScore(tag, platform, false, true), oversmash.player(tag)],
   );
@@ -436,10 +437,8 @@ export default {
   getOutdatedPlayers,
   updatePlayer,
 
-  async getLocalFeed(req, res) {
-    let { page, time } = req.query;
-    time = time || 1;
-    page = page || 1;
+  async getLocalFeed(req: Request, res: Response): Promise<Response | void> {
+    const { page = 1, time = 1 } = req.query;
     const { authorization } = req.headers;
     let finalFeed = [];
 
@@ -481,7 +480,7 @@ export default {
     }
   },
 
-  async getGlobalFeed(req, res) {
+  async getGlobalFeed(req: Request, res: Response): Promise<Response> {
     let { page, time } = req.query;
     time = time || 1;
     page = page || 1;
@@ -502,7 +501,7 @@ export default {
    * @param {String} req HTTP request data
    * @param {String} res HTTP response data
    */
-  async getFollowing(req, res) {
+  async getFollowing(req: Request, res: Response): Promise<Response | void> {
     const token = req.headers.authorization;
     firebase.auth().verifyIdToken(token)
       .then(async (userData) => {
@@ -552,7 +551,7 @@ export default {
    * @param {String} req HTTP request data
    * @param {String} res HTTP response data
    */
-  async getStats(req, res) {
+  async getStats(req: Request, res: Response): Promise<Response | void> {
     const token = req.headers.authorization;
     const { tagId } = req.params;
     firebase.auth().verifyIdToken(token)
@@ -593,7 +592,7 @@ export default {
    * @param {String} req HTTP request data
    * @param {String} res HTTP response data
    */
-  async followPlayer(req, res) {
+  async followPlayer(req: Request, res: Response): Promise<Response | void> {
     const token = req.headers.authorization;
     const { tag, platform } = req.body;
     firebase.auth().verifyIdToken(token)

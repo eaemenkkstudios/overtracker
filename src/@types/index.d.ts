@@ -11,42 +11,6 @@ declare module 'oversmash' {
     camel = 'camel'
   }
 
-  export enum Heroes {
-      all = 'all',
-      ana = 'ana',
-      ashe = 'ashe',
-      baptiste = 'baptiste',
-      bastion = 'bastion',
-      brigitte = 'brigitte',
-      dva = 'dva',
-      doomfist = 'doomfist',
-      echo = 'echo',
-      genji = 'genji',
-      hanzo = 'hanzo',
-      junkrat = 'junkrat',
-      lucio = 'lucio',
-      mccree = 'mccree',
-      mei = 'mei',
-      mercy = 'mercy',
-      moira = 'moira',
-      orisa = 'orisa',
-      pharah = 'pharah',
-      reaper = 'reaper',
-      reinhardt = 'reinhardt',
-      roadhog = 'roadhog',
-      sigma = 'sigma',
-      soldier76 = 'soldier76',
-      sombra = 'sombra',
-      symmetra = 'symmetra',
-      torbjorn = 'torbjorn',
-      tracer = 'tracer',
-      widowmaker = 'idowmaker',
-      winston = 'winston',
-      wreckingball = 'wreckingball',
-      zarya = 'zarya',
-      zenyatta = 'zenyatta'
-  }
-
   export type Header = {
       [key: string]: string;
   }
@@ -115,7 +79,7 @@ declare module 'oversmash' {
   }
 
   export type GameMode = {
-      [K in keyof typeof Heroes]: Hero;
+      [key: string]: Hero;
   }
 
   export type Stats = {
@@ -138,7 +102,7 @@ declare module 'oversmash' {
 
   function main(callerOptions?: CallerOptions): {
       readonly options: CallerOptions;
-      player(name: string): Promise<Player>;
+      player(name: string, platfortm?: string): Promise<Player>;
       playerStats(name: string, platform?: string): Promise<PlayerStats>;
   };
 

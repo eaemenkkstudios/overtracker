@@ -1,12 +1,5 @@
-const oversmash = require('oversmash').default();
-const firebase = require('firebase-admin');
-
-const config = require('../config/config');
-
-const overwatch = require('../overwatch');
-const {
-  fVal, fKey, objectClone, shuffle, isObject,
-} = require('../util');
+import oversmash from 'oversmash';
+import overwatch from '../overwatch';
 
 const scoreCard = Object.freeze({
   endorsement: overwatch.player.ENDORSEMENT.UPDATED,
@@ -144,7 +137,7 @@ async function makeFeed(role, time, generic, page, customList) {
       if (players[key].scores && players[key].scores.length >= time) {
         if (generic && (time === 1 ? players[key].current.main
           : players[key].scores[players[key].scores.length - time + 1].main)
-         !== players[key].scores[players[key].scores.length - time].main) {
+          !== players[key].scores[players[key].scores.length - time].main) {
           cardArray.push({
             date: players[key].current.date,
             player: {
@@ -159,7 +152,7 @@ async function makeFeed(role, time, generic, page, customList) {
         if (generic && players[key].scores && players[key].scores.length >= time
           && (time === 1 ? players[key].current.endorsement
             : players[key].scores[players[key].scores.length - time + 1].endorsement)
-         !== players[key].scores[players[key].scores.length - time].endorsement) {
+          !== players[key].scores[players[key].scores.length - time].endorsement) {
           cardArray.push({
             date: players[key].current.date,
             player: {
@@ -172,11 +165,11 @@ async function makeFeed(role, time, generic, page, customList) {
         }
         if (generic && players[key].scores && players[key].scores.length >= time
           && (time === 1 ? (players[key].current.games.won
-        / players[key].current.games.played)
+            / players[key].current.games.played)
             : (players[key].scores[players[key].scores.length - time + 1].games.won
-          / players[key].scores[players[key].scores.length - time + 1].games.played))
-         !== (players[key].scores[players[key].scores.length - time].games.won
-          / players[key].scores[players[key].scores.length - time].games.played)) {
+              / players[key].scores[players[key].scores.length - time + 1].games.played))
+          !== (players[key].scores[players[key].scores.length - time].games.won
+            / players[key].scores[players[key].scores.length - time].games.played)) {
           cardArray.push({
             date: players[key].current.date,
             player: {
@@ -190,7 +183,7 @@ async function makeFeed(role, time, generic, page, customList) {
         if (players[key].scores && players[key].scores.length >= time
           && (time === 1 ? players[key].current.rank[role]
             : players[key].scores[players[key].scores.length - time + 1].rank[role])
-         !== players[key].scores[players[key].scores.length - time].rank[role]) {
+          !== players[key].scores[players[key].scores.length - time].rank[role]) {
           switch (role) {
             case overwatch.roles.SUPPORT:
               cardArray.push({
@@ -371,7 +364,7 @@ async function getOutdatedPlayers() {
       if (snapshot.val()) {
         Object.keys(snapshot.val()).forEach((player) => {
           if (snapshot.val()[player].current) {
-          // 60 * 60 * 24 * 1000 = 8640000 = 24hrs
+            // 60 * 60 * 24 * 1000 = 8640000 = 24hrs
             if (currentTime - snapshot.val()[player].lastUpdate >= 8640000 / 24) {
               outdatedPlayers.push({
                 tag: snapshot.val()[player].tag,
@@ -404,7 +397,7 @@ async function updatePlayer(tag, platform) {
     .once('value', async (snapshot) => {
       const lastScore = fVal(snapshot.val()).current;
       const hasChanged = JSON.stringify(lastScore.games) !== JSON.stringify(newScore.games)
-      || JSON.stringify(lastScore.rank) !== JSON.stringify(newScore.rank);
+        || JSON.stringify(lastScore.rank) !== JSON.stringify(newScore.rank);
       let newStats = {};
       if (fVal(snapshot.val()).scores) {
         newStats = {
@@ -439,7 +432,7 @@ async function updatePlayer(tag, platform) {
 }
 
 
-module.exports = {
+export default {
   getOutdatedPlayers,
   updatePlayer,
 

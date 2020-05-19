@@ -1,10 +1,9 @@
-const express = require('express');
-const { celebrate, Segments, Joi } = require('celebrate');
+import express from 'express';
+import { celebrate, Segments, Joi } from 'celebrate';
+import overwatch from './overwatch';
+import PlayerController from './controllers/PlayerController';
 
 const routes = express.Router();
-
-const overwatch = require('./overwatch');
-const PlayerController = require('./controllers/PlayerController');
 
 routes.post('/follow', celebrate({
   [Segments.HEADERS]: Joi.object({
@@ -48,4 +47,4 @@ routes.get('/feed/local', celebrate({
   }),
 }), PlayerController.getLocalFeed);
 
-module.exports = routes;
+export default routes;

@@ -1,10 +1,4 @@
-const oversmash = require('oversmash').default();
-const firebase = require('firebase-admin');
-const config = require('./config/config');
-
-const {
-  isObject, isEmpty, fVal, iVal,
-} = require('./util');
+import oversmash from 'oversmash';
 
 const slope = {
   DECREASING: 'decreasing',
@@ -698,11 +692,11 @@ const friendlyPlatforms = Object.freeze({
  * @param {Number} rank Player's SR
  * @returns {String} Image URL
  */
-function getRankImageURL(rank) {
+function getRankImageURL(rank: number): string {
   const baseUrl = 'https://d1u1mce87gyfbn.cloudfront.net/game/rank-icons/rank-';
   const suffix = 'Tier.png';
   let tier = '';
-  if (rank < 1) return undefined;
+  if (rank < 1) return 'Unranked';
   if (rank < 1500) {
     tier = 'Bronze';
   } else if (rank < 2000) {
@@ -721,7 +715,7 @@ function getRankImageURL(rank) {
   return baseUrl + tier + suffix;
 }
 
-async function getPlayerInfo(tag, platform, forceUpdate) {
+async function getPlayerInfo(tag: string, platform: string, forceUpdate: boolean): Promise<any> {
   let playerStats;
   if (playerCache[`${tag}${platform}`]) {
     const now = new Date().getDate();
@@ -748,7 +742,7 @@ async function getPlayerInfo(tag, platform, forceUpdate) {
   return playerStats;
 }
 
-async function fillObject(obj, tag, platform, time, forceUpdate) {
+async function fillObject(obj, tag: string, platform: string, time: number, forceUpdate: boolean): Promise<any> {
   const playerStats = await getPlayerInfo(tag, platform, forceUpdate);
   if (isEmpty(playerStats.stats.competitive)) return false;
   let exists = false;
@@ -767,7 +761,7 @@ async function fillObject(obj, tag, platform, time, forceUpdate) {
   return true;
 }
 
-module.exports = {
+export default {
   roles,
   heroes,
   stringToInfo,

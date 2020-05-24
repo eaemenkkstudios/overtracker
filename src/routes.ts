@@ -1,50 +1,42 @@
 import express from 'express';
-import { celebrate, Segments, Joi } from 'celebrate';
-import overwatch from './overwatch';
-import PlayerController from './controllers/PlayerController';
+import Validation from './validation';
+import * as Controllers from './controllers';
 
 const routes = express.Router();
 
-routes.post('/follow', celebrate({
-  [Segments.HEADERS]: Joi.object({
-    authorization: Joi.string().required(),
-  }).unknown(),
-  [Segments.BODY]: Joi.object().keys({
-    tag: Joi.string().pattern(/^\D\w{2,12}#\d{4,5}$/u).required(),
-    platform: Joi.string().valid(...Object.keys(overwatch.friendlyPlatforms)).optional(),
-  }),
-}), PlayerController.followPlayer);
+routes.post(
+  '/follow',
+  Validation.authHeader,
+  Validation.followPlayer,
+  Controllers.Player.followPlayer,
+);
 
-routes.get('/info/:tagId', celebrate({
-  [Segments.HEADERS]: Joi.object({
-    authorization: Joi.string().required(),
-  }).unknown(),
-  [Segments.PARAMS]: Joi.object().keys({
-    tagId: Joi.string().required(),
-  }),
-}), PlayerController.getStats);
+routes.get(
+  '/info/:tagId',
+  Validation.authHeader,
+  Validation.playerInfo,
+  Controllers.Player.getStats,
+);
 
-routes.get('/following', celebrate({
-  [Segments.HEADERS]: Joi.object({
-    authorization: Joi.string().required(),
-  }).unknown(),
-}), PlayerController.getFollowing);
+routes.get('/following', Validation.authHeader, Controllers.Player.getFollowing);
 
-routes.get('/feed/global', celebrate({
-  [Segments.QUERY]: Joi.object().keys({
-    time: Joi.number().valid().min(1).optional(),
-    page: Joi.number().valid().min(1).optional(),
-  }),
-}), PlayerController.getGlobalFeed);
+routes.get(
+  '/feed/global',
+  Validation.globalFeed,
+  Controllers.Player.getGlobalFeed,
+);
 
-routes.get('/feed/local', celebrate({
-  [Segments.HEADERS]: Joi.object({
-    authorization: Joi.string().required(),
-  }).unknown(),
-  [Segments.QUERY]: Joi.object().keys({
-    time: Joi.number().valid().min(1).optional(),
-    page: Joi.number().valid().min(1).optional(),
-  }),
-}), PlayerController.getLocalFeed);
+routes.get(
+  '/feed/local',
+  Validation.authHeader,
+  Validation.localFeed,
+  Controllers.Player.getLocalFeed,
+);
+
+routes.post('/register', Validation.authHeader, Controllers.User.create);
+
+routes.post('/login', Validation.authHeader, Controllers.Session.create);
+
+routes.delete('/logout', Validation.authHeader, Controllers.Session.delete);
 
 export default routes;

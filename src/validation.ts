@@ -1,5 +1,7 @@
 import { celebrate, Segments, Joi } from 'celebrate';
+import { Request, Response, NextFunction } from 'express';
 import overwatch from './overwatch';
+import SessionManager from './utils/SessionManager';
 
 class Validation {
   public authHeader = celebrate({
@@ -38,6 +40,22 @@ class Validation {
       page: Joi.number().valid().min(1).optional(),
     }),
   });
+
+  public async validateSession(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<Response | void> {
+    const token = req.headers.authorization;
+    if (token) {
+      const session = await SessionManager.getSession(token);
+      if (session) {
+        req.session = session;
+        return next();
+      }
+    }
+    return res.status(401).send();
+  }
 }
 
 export default new Validation();

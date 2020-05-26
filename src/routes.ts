@@ -7,6 +7,7 @@ const routes = express.Router();
 routes.post(
   '/follow',
   Validation.authHeader,
+  Validation.validateSession,
   Validation.followPlayer,
   Controllers.Player.followPlayer,
 );
@@ -14,11 +15,17 @@ routes.post(
 routes.get(
   '/info/:tagId',
   Validation.authHeader,
+  Validation.validateSession,
   Validation.playerInfo,
   Controllers.Player.getStats,
 );
 
-routes.get('/following', Validation.authHeader, Controllers.Player.getFollowing);
+routes.get(
+  '/following',
+  Validation.authHeader,
+  Validation.validateSession,
+  Controllers.Player.getFollowing,
+);
 
 routes.get(
   '/feed/global',
@@ -29,6 +36,7 @@ routes.get(
 routes.get(
   '/feed/local',
   Validation.authHeader,
+  Validation.validateSession,
   Validation.localFeed,
   Controllers.Player.getLocalFeed,
 );

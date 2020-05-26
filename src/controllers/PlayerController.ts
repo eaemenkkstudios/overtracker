@@ -2,8 +2,20 @@ import { Response, Request } from 'express';
 import oversmash from 'oversmash';
 import overwatch, { Roles, Obj } from '../overwatch';
 import Utils from '../utils/Utils';
-import Player, { PlayerProps } from '../models/Player';
+import Player, { PlayerProps, PlayerDoc } from '../models/Player';
 import heroes from '../heroes.json';
+import { UserDoc } from '../models/User';
+
+interface FollowedPlayer {
+  id: string;
+  portrait: string;
+  current: {
+    endorsement: number;
+    role: string;
+  };
+  platform: string;
+  tag: string;
+}
 
 class PlayerController {
   public maxTagsPerRole: string;
@@ -323,9 +335,9 @@ class PlayerController {
 
     Object.keys(score.rank).forEach((rank) => {
       const img = overwatch.getRankImageURL((score.rank as Obj)[rank] as number);
-      score.rank[rank] = {
+      (score.rank as Obj)[rank] = {
         type: 'Obj',
-        sr: score.rank[rank],
+        sr: (score.rank as Obj)[rank],
         img,
       };
     });
@@ -334,12 +346,11 @@ class PlayerController {
 
   /**
    * Registers the player in the database
-   * @async
    * @param tag Player's battletag
    * @param platform Player's platform
    * @returns The database referece or `undefined`
    */
-  public async registerBattleTag(tag: string, platform: string) {
+  public async registerBattleTag(tag: string, platform: string): Promise<any | undefined> {
     platform = platform || 'pc';
     const player = await oversmash().player(tag, platform);
     if (!player.accounts.length) return undefined;
@@ -373,98 +384,115 @@ class PlayerController {
         scores: [],
       };
     }
-    return firebase.database().ref('battletags').push(finalStats);
+    return Player.create(finalStats);
+    // return firebase.database().ref('battletags').push(finalStats);
   }
 
   /**
    * Gets all of the players that haven't been updated in more than 12hrs
-   * @async
-   * @returns {Promise<[{
-   *  tag: String
-   *  platform: String
-   * }]>} Array of outdated players
+   * @returns Array of outdated players
    */
-  public async getOutdatedPlayers() {
+  public async getOutdatedPlayers(): Promise<PlayerDoc[]> {
     const currentTime = new Date().getTime();
-    const outdatedPlayers = [];
-    return firebase
-      .database()
-      .ref('battletags')
-      .once('value', (snapshot) => {
-        if (snapshot.val()) {
-          Object.keys(snapshot.val()).forEach((player) => {
-            if (snapshot.val()[player].current) {
-            // 60 * 60 * 24 * 1000 = 8640000 = 24hrs
-              if (currentTime - snapshot.val()[player].lastUpdate >= 8640000 / 24) {
-                outdatedPlayers.push({
-                  tag: snapshot.val()[player].tag,
-                  platform: snapshot.val()[player].platform,
-                });
-              }
-            }
-          });
-        }
-      })
-      .then(() => outdatedPlayers);
+    // 60 * 60 * 24 * 1000 / 4 = 8640000 / 4 = 24hrs / 4 = 6hrs
+    return Player.find({ lastUpdate: { $lte: currentTime - (8640000 / 4) } });
+    // return firebase
+    //   .database()
+    //   .ref('battletags')
+    //   .once('value', (snapshot) => {
+    //     if (snapshot.val()) {
+    //       Object.keys(snapshot.val()).forEach((player) => {
+    //         if (snapshot.val()[player].current) {
+    //           if (currentTime - snapshot.val()[player].lastUpdate >= 8640000 / 24) {
+    //             outdatedPlayers.push({
+    //               tag: snapshot.val()[player].tag,
+    //               platform: snapshot.val()[player].platform,
+    //             });
+    //           }
+    //         }
+    //       });
+    //     }
+    //   })
+    //   .then(() => outdatedPlayers);
   }
 
   /**
    * Updates the score of the player
-   * @async
-   * @param {String} tag Player's battletag
-   * @param {String} platform Player's platform
+   * @param tag Player's battletag
+   * @param platform Player's platform
    */
-  public async updatePlayer(tag: string, platform: string) {
+  public async updatePlayer(tag: string, platform: string): Promise<void> {
     const [newScore, newPlayer] = await Promise.all(
-      [makeScore(tag, platform, false, true), oversmash.player(tag)],
+      [this.makeScore(tag, platform, false, true), oversmash().player(tag)],
     );
-    if (!newScore) return;
-    await firebase
-      .database()
-      .ref('battletags')
-      .orderByChild('tag')
-      .equalTo(tag)
-      .once('value', async (snapshot) => {
-        const lastScore = fVal(snapshot.val()).current;
-        const hasChanged = JSON.stringify(lastScore.games) !== JSON.stringify(newScore.games)
-        || JSON.stringify(lastScore.rank) !== JSON.stringify(newScore.rank);
-        let newStats = {};
-        if (fVal(snapshot.val()).scores) {
-          newStats = {
-            [fKey(snapshot.val())]: {
-              tag,
-              platform,
-              portrait: newPlayer.accounts
-                .find((account) => account.platform === platform).portrait,
-              scores: hasChanged ? [
-                ...fVal(snapshot.val()).scores,
-                fVal(snapshot.val()).current,
-              ] : [...fVal(snapshot.val()).scores],
-              lastUpdate: new Date().getTime(),
-              current: newScore,
-            },
-          };
-        } else {
-          newStats = {
-            [fKey(snapshot.val())]: {
-              tag,
-              platform,
-              portrait: newPlayer.accounts
-                .find((account) => account.platform === platform).portrait,
-              scores: hasChanged ? [fVal(snapshot.val()).current] : [],
-              lastUpdate: new Date().getTime(),
-              current: newScore,
-            },
-          };
-        }
-        await snapshot.ref.update(newStats);
-      });
+    if (!newScore || !newPlayer) return;
+
+    const player = await Player.findOne({ tag });
+    if (!player) return;
+
+    const lastScore = player.current;
+    if (!lastScore) return;
+
+    const hasChanged = JSON.stringify(lastScore.games) !== JSON.stringify(newScore.games)
+    || JSON.stringify(lastScore.rank) !== JSON.stringify(newScore.rank);
+
+    player.portrait = newPlayer.accounts
+      .find((account) => account.platform === platform)?.portrait;
+
+    if (hasChanged && player.current) {
+      player.scores.push(player.current);
+    }
+    delete newScore.type;
+    player.current = newScore as unknown as typeof player.current;
+    player.lastUpdate = new Date().getTime();
+    await player.save();
+
+    // await firebase
+    //   .database()
+    //   .ref('battletags')
+    //   .orderByChild('tag')
+    //   .equalTo(tag)
+    //   .once('value', async (snapshot) => {
+    //     const lastScore = fVal(snapshot.val()).current;
+    //     const hasChanged = JSON.stringify(lastScore.games) !== JSON.stringify(newScore.games)
+    //     || JSON.stringify(lastScore.rank) !== JSON.stringify(newScore.rank);
+    //     let newStats = {};
+    //     if (fVal(snapshot.val()).scores) {
+    //       newStats = {
+    //         [fKey(snapshot.val())]: {
+    //           tag,
+    //           platform,
+    //           portrait: newPlayer.accounts
+    //             .find((account) => account.platform === platform).portrait,
+    //           scores: hasChanged ? [
+    //             ...fVal(snapshot.val()).scores,
+    //             fVal(snapshot.val()).current,
+    //           ] : [...fVal(snapshot.val()).scores],
+    //           lastUpdate: new Date().getTime(),
+    //           current: newScore,
+    //         },
+    //       };
+    //     } else {
+    //       newStats = {
+    //         [fKey(snapshot.val())]: {
+    //           tag,
+    //           platform,
+    //           portrait: newPlayer.accounts
+    //             .find((account) => account.platform === platform).portrait,
+    //           scores: hasChanged ? [fVal(snapshot.val()).current] : [],
+    //           lastUpdate: new Date().getTime(),
+    //           current: newScore,
+    //         },
+    //       };
+    //     }
+    //     await snapshot.ref.update(newStats);
+    //   });
   }
 
   public async getLocalFeed(req: Request, res: Response): Promise<Response | void> {
     const { page = 1, time = 1 } = req.query;
     const { authorization } = req.headers;
-    let finalFeed = [];
+    let finalFeed: Obj[] = [];
 
     const playersList = {};
     const auth = await firebase.auth().verifyIdToken(authorization)
@@ -493,11 +521,11 @@ class PlayerController {
         }));
       }
       const feeds = await Promise.all(Object.values(Roles).map(
-        async (role, i) => makeFeed(role, time, i === page
-          % Object.keys(Roles).length, page, playersList),
+        async (role, i) => this.makeFeed(role, +time, i === +page
+          % Object.keys(Roles).length, +page, playersList),
       ));
       feeds.forEach((feed) => {
-        finalFeed = shuffle(finalFeed.concat(feed));
+        finalFeed = Utils.shuffle(finalFeed.concat(feed));
       });
       finalFeed = finalFeed.filter((v, i, o) => o.indexOf(v) === i);
       return res.json(finalFeed);
@@ -526,48 +554,69 @@ class PlayerController {
    * @param {String} req HTTP request data
    * @param {String} res HTTP response data
    */
-  public async getFollowing(req: Request, res: Response): Promise<Response | void> {
-    const token = req.headers.authorization;
-    firebase.auth().verifyIdToken(token)
-      .then(async (userData) => {
-        firebase
-          .database()
-          .ref('accounts')
-          .child(userData.uid)
-          .child('following')
-          .once('value', (snapshot) => {
-            firebase
-              .database()
-              .ref('battletags')
-              .once('value', (snap) => {
-                const followedPlayers = snapshot.val();
-                if (!followedPlayers) return;
-                const playersInfo = snap.val();
-                const tagIds = Object.keys(followedPlayers).map((id) => followedPlayers[id]);
-                const players = [];
-                Object.keys(playersInfo).forEach((player) => {
-                  if (!playersInfo[player].current) return;
-                  if (tagIds.indexOf(player) !== -1) {
-                    players.push({
-                      id: player,
-                      portrait: playersInfo[player].portrait,
-                      current: {
-                        endorsement: playersInfo[player].current.endorsement,
-                        role: overwatch.heroes[playersInfo[player].current.main],
-                      },
-                      platform: overwatch.friendlyPlatforms[(playersInfo[player].platform)],
-                      tag: playersInfo[player].tag,
-                    });
-                  }
-                });
-                res.status(200).json(players);
-              });
-          })
-          .then((snap) => {
-            if (!snap.val()) res.status(200).json([]);
-          });
-      })
-      .catch(() => res.status(401).send());
+  public async getFollowing(req: Request, res: Response): Promise<Response> {
+    const { session } = req;
+    if (!session) return res.status(401).send();
+    const user = session.user as UserDoc;
+    await user.populate('following').execPopulate();
+    const players: FollowedPlayer[] = [];
+    (user.following as PlayerProps[]).forEach((player) => {
+      if (!player.current) return;
+      players.push({
+        id: player._id.toHexString(),
+        portrait: player.portrait || '',
+        current: {
+          endorsement: player.current.endorsement,
+          role: heroes[player.current.main as keyof typeof heroes],
+        },
+        platform: overwatch.friendlyPlatforms[
+          player.platform as keyof typeof overwatch.friendlyPlatforms
+        ],
+        tag: player.tag,
+      });
+    });
+    return res.status(200).json(players);
+
+    // firebase.auth().verifyIdToken(token)
+    //   .then(async (userData) => {
+    //     firebase
+    //       .database()
+    //       .ref('accounts')
+    //       .child(userData.uid)
+    //       .child('following')
+    //       .once('value', (snapshot) => {
+    //         firebase
+    //           .database()
+    //           .ref('battletags')
+    //           .once('value', (snap) => {
+    //             const followedPlayers = snapshot.val();
+    //             if (!followedPlayers) return;
+    //             const playersInfo = snap.val();
+    //             const tagIds = Object.keys(followedPlayers).map((id) => followedPlayers[id]);
+    //             const players = [];
+    //             Object.keys(playersInfo).forEach((player) => {
+    //               if (!playersInfo[player].current) return;
+    //               if (tagIds.indexOf(player) !== -1) {
+    //                 players.push({
+    //                   id: player,
+    //                   portrait: playersInfo[player].portrait,
+    //                   current: {
+    //                     endorsement: playersInfo[player].current.endorsement,
+    //                     role: overwatch.heroes[playersInfo[player].current.main],
+    //                   },
+    //                   platform: overwatch.friendlyPlatforms[(playersInfo[player].platform)],
+    //                   tag: playersInfo[player].tag,
+    //                 });
+    //               }
+    //             });
+    //             res.status(200).json(players);
+    //           });
+    //       })
+    //       .then((snap) => {
+    //         if (!snap.val()) res.status(200).json([]);
+    //       });
+    //   })
+    //   .catch(() => res.status(401).send());
   }
 
   /**
@@ -589,13 +638,14 @@ class PlayerController {
           .once('value', async (snapshot) => {
             if (!snapshot.val()) return res.status(400).send();
             const { tag, platform, portrait } = fVal(snapshot.val());
-            const newScore = await makeScore(tag, platform, true, false);
+            const newScore = await this.makeScore(tag, platform, true, false);
+            if (!newScore) return res.status(404).send();
             const stats = {
               tag,
               platform,
               portrait,
-              scores: [],
-              now: makeFriendlyScore(newScore),
+              scores: [] as Obj[],
+              now: this.makeFriendlyScore(newScore),
             };
             if (fVal(snapshot.val()).current) {
               stats.scores.push(this.makeFriendlyScore(fVal(snapshot.val()).current));

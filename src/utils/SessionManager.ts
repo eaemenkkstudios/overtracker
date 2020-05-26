@@ -62,7 +62,7 @@ class SessionManager {
   ): Promise<SessionProps[] | null> {
     return Session.find({ socket: /^(?!\s*$).+/ }).populate(options || {
       path: 'user',
-      select: 'name email cpf',
+      select: 'name email',
     });
   }
 

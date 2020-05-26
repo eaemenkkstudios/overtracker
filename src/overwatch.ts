@@ -1,5 +1,6 @@
-import oversmash from 'oversmash';
+import oversmash, { PlayerStats } from 'oversmash';
 import heroes from './heroes.json';
+import { HashMap } from './utils/Utils';
 
 export enum Slope {
   DECREASING = 'decreasing',
@@ -8,8 +9,8 @@ export enum Slope {
 }
 
 export enum Sources {
-  MONGO,
-  OVERSMASH
+  MONGO = 'MONGO',
+  OVERSMASH = 'OVERSMASH',
 }
 
 export enum Roles {
@@ -18,33 +19,57 @@ export enum Roles {
   TANK = 'tank',
 }
 
+export interface CustomType {
+  type: string;
+}
+
+export interface Obj {
+  type: 'Obj';
+  [key: string]: Obj |string | number | boolean;
+}
+
+interface PlayerNode {
+  stats: PlayerStats;
+  time: number;
+  views: number;
+}
+
 class Overwatch {
-  public playerCache = {};
+  public playerCache: HashMap<PlayerNode> = {};
+
+  public maxBufferLength: string;
+
+  constructor() {
+    this.maxBufferLength = process.env.MAX_BUFFER_LENGTH || '';
+  }
 
   // Transforma uma request de informação na informação requisitada.
   // Exemplo: player.SR.SUPPORT.CURRENT -> 2468
-  public stringToInfo(obj, oversmashStats, mongoStats, time) {
-    if (time < 1) return;
+  public stringToInfo(
+    obj: Obj | string,
+    time: number,
+    oversmashStats: PlayerStats,
+    mongoStats?: any,
+  ): void {
+    if (time && time < 1) return;
     Object.keys(obj).forEach((key) => {
-      if (isObject(obj[key])) {
-        stringToInfo(obj[key], oversmashStats, mongoStats, time);
-      } else if (typeof obj[key] === 'string') {
-        const args = (String)(obj[key]).split('_');
+      if (((obj as Obj)[key] as Obj).type !== undefined) {
+        const args = ((obj as Obj)[key] as string).split('_');
         switch (args[args.length - 1]) {
           case Sources.MONGO:
             switch (args[0]) {
               case 'endorsement':
                 switch (args[1]) {
                   case 'previous':
-                    if (!mongoStats.scores
+                    if (!mongoStats?.scores
                     || mongoStats.scores.length < time) break;
-                    obj[key] = mongoStats.scores[mongoStats.scores.length - time]
+                    (obj as Obj)[key] = mongoStats.scores[mongoStats.scores.length - time]
                       .endorsement;
                     break;
                   case 'current':
                     if (time > 1 && (!mongoStats.scores
-                    || !mongoStats.scores.length < time - 1)) break;
-                    obj[key] = time === 1 ? mongoStats.current.endorsement
+                    || !(mongoStats.scores.length < time - 1))) break;
+                    (obj as Obj)[key] = time === 1 ? mongoStats.current.endorsement
                       : mongoStats.scores[mongoStats.scores.length - time + 1].endorsement;
                     break;
                   default:
@@ -58,8 +83,8 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = Math.max(mongoStats.scores[mongoStats.scores.length - time]
-                          .rank.damage,
+                        (obj as Obj)[key] = Math.max(mongoStats.scores[
+                          mongoStats.scores.length - time].rank.damage,
                         mongoStats.scores[mongoStats.scores.length - time]
                           .rank.support,
                         mongoStats.scores[mongoStats.scores.length - time]
@@ -67,8 +92,8 @@ class Overwatch {
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = time === 1 ? Math.max(mongoStats.current
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = time === 1 ? Math.max(mongoStats.current
                           .rank.damage,
                         mongoStats.current
                           .rank.support,
@@ -84,7 +109,7 @@ class Overwatch {
                       case 'slope':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                           break;
                         }
                         switch (time === 1 ? Math.max(mongoStats.current
@@ -103,54 +128,54 @@ class Overwatch {
                             .rank.support
                             : mongoStats.scores[mongoStats.scores.length - time + 1]
                               .rank.support):
-                            obj[key] = time === 1 ? (mongoStats.current
+                            (obj as Obj)[key] = time === 1 ? (mongoStats.current
                               .rank.support)
                               : (mongoStats.scores[mongoStats.scores.length - time + 1]
                                 .rank.support)
                             - mongoStats.scores[mongoStats.scores.length - time]
                               .rank.support;
-                            if (obj[key] > 0) {
-                              obj[key] = Slope.INCREASING;
-                            } else if (obj[key] < 0) {
-                              obj[key] = Slope.DECREASING;
+                            if ((obj as Obj)[key] > 0) {
+                              (obj as Obj)[key] = Slope.INCREASING;
+                            } else if ((obj as Obj)[key] < 0) {
+                              (obj as Obj)[key] = Slope.DECREASING;
                             } else {
-                              obj[key] = Slope.TIED;
+                              (obj as Obj)[key] = Slope.TIED;
                             }
                             break;
                           case (time === 1 ? mongoStats.current
                             .rank.damage
                             : mongoStats.scores[mongoStats.scores.length - time + 1]
                               .rank.damage):
-                            obj[key] = time === 1 ? (mongoStats.current
+                            (obj as Obj)[key] = time === 1 ? (mongoStats.current
                               .rank.damage)
                               : (mongoStats.scores[mongoStats.scores.length - time + 1]
                                 .rank.damage)
                             - mongoStats.scores[mongoStats.scores.length - time]
                               .rank.damage;
-                            if (obj[key] > 0) {
-                              obj[key] = Slope.INCREASING;
-                            } else if (obj[key] < 0) {
-                              obj[key] = Slope.DECREASING;
+                            if ((obj as Obj)[key] > 0) {
+                              (obj as Obj)[key] = Slope.INCREASING;
+                            } else if ((obj as Obj)[key] < 0) {
+                              (obj as Obj)[key] = Slope.DECREASING;
                             } else {
-                              obj[key] = Slope.TIED;
+                              (obj as Obj)[key] = Slope.TIED;
                             }
                             break;
                           case (time === 1 ? mongoStats.current
                             .rank.tank
                             : mongoStats.scores[mongoStats.scores.length - time + 1]
                               .rank.tank):
-                            obj[key] = time === 1 ? (mongoStats.current
+                            (obj as Obj)[key] = time === 1 ? (mongoStats.current
                               .rank.tank)
                               : (mongoStats.scores[mongoStats.scores.length - time + 1]
                                 .rank.tank)
                             - mongoStats.scores[mongoStats.scores.length - time]
                               .rank.tank;
-                            if (obj[key] > 0) {
-                              obj[key] = Slope.INCREASING;
-                            } else if (obj[key] < 0) {
-                              obj[key] = Slope.DECREASING;
+                            if ((obj as Obj)[key] > 0) {
+                              (obj as Obj)[key] = Slope.INCREASING;
+                            } else if ((obj as Obj)[key] < 0) {
+                              (obj as Obj)[key] = Slope.DECREASING;
                             } else {
-                              obj[key] = Slope.TIED;
+                              (obj as Obj)[key] = Slope.TIED;
                             }
                             break;
                           default:
@@ -166,42 +191,43 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = mongoStats.scores[mongoStats.scores.length - time]
-                          .rank[heroes[time === 1 ? mongoStats.current.main
-                            : mongoStats.scores[mongoStats.scores.length - time + 1].main]];
+                        (obj as Obj)[key] = mongoStats.scores[mongoStats.scores.length - time]
+                          .rank[heroes[(time === 1 ? mongoStats.current.main
+                            : mongoStats.scores[mongoStats.scores.length - time + 1]
+                              .main) as keyof typeof heroes]];
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = time === 1 ? mongoStats.current
-                          .rank[heroes[mongoStats.current.main]]
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = time === 1 ? mongoStats.current
+                          .rank[heroes[mongoStats.current.main as keyof typeof heroes]]
                           : mongoStats.scores[mongoStats.scores.length - time + 1]
                             .rank[heroes[mongoStats.scores[mongoStats.scores.length - time + 1]
-                              .main]];
+                              .main as keyof typeof heroes]];
                         break;
                       case 'slope':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                           break;
                         }
-                        obj[key] = time === 1 ? (mongoStats.current
-                          .rank[heroes[mongoStats.current.main]]
+                        (obj as Obj)[key] = time === 1 ? (mongoStats.current
+                          .rank[heroes[mongoStats.current.main as keyof typeof heroes]]
                         - mongoStats.scores[mongoStats.scores.length - time]
-                          .rank[heroes[mongoStats.current.main]])
+                          .rank[heroes[mongoStats.current.main as keyof typeof heroes]])
                           : (mongoStats.scores[mongoStats.scores.length - time + 1]
                             .rank[heroes[mongoStats.scores[mongoStats.scores.length - time + 1]
-                              .main]]
+                              .main as keyof typeof heroes]]
                             - mongoStats.scores[mongoStats.scores.length - time]
                               .rank[heroes[mongoStats
                                 .scores[mongoStats.scores.length - time + 1]
-                                .main]]);
-                        if (obj[key] > 0) {
-                          obj[key] = Slope.INCREASING;
-                        } else if (obj[key] < 0) {
-                          obj[key] = Slope.DECREASING;
+                                .main as keyof typeof heroes]]);
+                        if ((obj as Obj)[key] > 0) {
+                          (obj as Obj)[key] = Slope.INCREASING;
+                        } else if ((obj as Obj)[key] < 0) {
+                          (obj as Obj)[key] = Slope.DECREASING;
                         } else {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                         }
                         break;
                       default:
@@ -213,13 +239,13 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = mongoStats.scores[mongoStats.scores.length - time]
+                        (obj as Obj)[key] = mongoStats.scores[mongoStats.scores.length - time]
                           .rank.support;
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = time === 1 ? mongoStats.current
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = time === 1 ? mongoStats.current
                           .rank.support
                           : mongoStats.scores[mongoStats.scores.length - time + 1]
                             .rank.support;
@@ -227,20 +253,20 @@ class Overwatch {
                       case 'slope':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                           break;
                         }
-                        obj[key] = (time === 1 ? mongoStats.current
+                        (obj as Obj)[key] = (time === 1 ? mongoStats.current
                           .rank.support
                           : mongoStats.scores[mongoStats.scores.length - time + 1]
                             .rank.support) - mongoStats.scores[mongoStats.scores.length - time]
                           .rank.support;
-                        if (obj[key] > 0) {
-                          obj[key] = Slope.INCREASING;
-                        } else if (obj[key] < 0) {
-                          obj[key] = Slope.DECREASING;
+                        if ((obj as Obj)[key] > 0) {
+                          (obj as Obj)[key] = Slope.INCREASING;
+                        } else if ((obj as Obj)[key] < 0) {
+                          (obj as Obj)[key] = Slope.DECREASING;
                         } else {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                         }
                         break;
                       default:
@@ -252,13 +278,13 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = mongoStats.scores[mongoStats.scores.length - time]
+                        (obj as Obj)[key] = mongoStats.scores[mongoStats.scores.length - time]
                           .rank.damage;
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = time === 1 ? mongoStats.current
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = time === 1 ? mongoStats.current
                           .rank.damage
                           : mongoStats.scores[mongoStats.scores.length - time + 1]
                             .rank.damage;
@@ -266,20 +292,20 @@ class Overwatch {
                       case 'slope':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                           break;
                         }
-                        obj[key] = (time === 1 ? mongoStats.current
+                        (obj as Obj)[key] = (time === 1 ? mongoStats.current
                           .rank.damage
                           : mongoStats.scores[mongoStats.scores.length - time + 1]
                             .rank.damage) - mongoStats.scores[mongoStats.scores.length - time]
                           .rank.damage;
-                        if (obj[key] > 0) {
-                          obj[key] = Slope.INCREASING;
-                        } else if (obj[key] < 0) {
-                          obj[key] = Slope.DECREASING;
+                        if ((obj as Obj)[key] > 0) {
+                          (obj as Obj)[key] = Slope.INCREASING;
+                        } else if ((obj as Obj)[key] < 0) {
+                          (obj as Obj)[key] = Slope.DECREASING;
                         } else {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                         }
                         break;
                       default:
@@ -291,13 +317,13 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = mongoStats.scores[mongoStats.scores.length - time]
+                        (obj as Obj)[key] = mongoStats.scores[mongoStats.scores.length - time]
                           .rank.tank;
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = time === 1 ? mongoStats.current
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = time === 1 ? mongoStats.current
                           .rank.tank
                           : mongoStats.scores[mongoStats.scores.length - time + 1]
                             .rank.tank;
@@ -305,20 +331,20 @@ class Overwatch {
                       case 'slope':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                           break;
                         }
-                        obj[key] = (time === 1 ? mongoStats.current
+                        (obj as Obj)[key] = (time === 1 ? mongoStats.current
                           .rank.tank
                           : mongoStats.scores[mongoStats.scores.length - time + 1]
                             .rank.tank) - mongoStats.scores[mongoStats.scores.length - time]
                           .rank.tank;
-                        if (obj[key] > 0) {
-                          obj[key] = Slope.INCREASING;
-                        } else if (obj[key] < 0) {
-                          obj[key] = Slope.DECREASING;
+                        if ((obj as Obj)[key] > 0) {
+                          (obj as Obj)[key] = Slope.INCREASING;
+                        } else if ((obj as Obj)[key] < 0) {
+                          (obj as Obj)[key] = Slope.DECREASING;
                         } else {
-                          obj[key] = Slope.TIED;
+                          (obj as Obj)[key] = Slope.TIED;
                         }
                         break;
                       default:
@@ -336,13 +362,13 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = mongoStats.scores[mongoStats.scores.length - time]
+                        (obj as Obj)[key] = mongoStats.scores[mongoStats.scores.length - time]
                           .games.played || 0;
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = mongoStats.current
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = mongoStats.current
                           .games.played || 0;
                         break;
                       default:
@@ -354,13 +380,13 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = mongoStats.scores[mongoStats.scores.length - time]
+                        (obj as Obj)[key] = mongoStats.scores[mongoStats.scores.length - time]
                           .games.won || 0;
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = mongoStats.current
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = mongoStats.current
                           .games.won || 0;
                         break;
                       default:
@@ -376,7 +402,7 @@ class Overwatch {
                   case 'previous':
                     if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                    obj[key] = `${(((mongoStats.scores[mongoStats.scores.length - time]
+                    (obj as Obj)[key] = `${(((mongoStats.scores[mongoStats.scores.length - time]
                       .games.won || 0)
               / mongoStats.scores[mongoStats.scores.length - time]
                 .games.played || 1) * 100).toFixed(2)}%`;
@@ -384,7 +410,7 @@ class Overwatch {
                   case 'current':
                     if (time === 1 ? !mongoStats.current
                       : !mongoStats.scores[mongoStats.scores.length - time + 1]) break;
-                    obj[key] = `${(((time === 1 ? mongoStats.current
+                    (obj as Obj)[key] = `${(((time === 1 ? mongoStats.current
                       .games.won || 0
                       : mongoStats.scores[mongoStats.scores.length - time + 1].games.won || 0)
               / mongoStats.current
@@ -393,10 +419,10 @@ class Overwatch {
                   case 'slope':
                     if (!mongoStats.scores
                     || mongoStats.scores.length < time) {
-                      obj[key] = Slope.TIED;
+                      (obj as Obj)[key] = Slope.TIED;
                       break;
                     }
-                    obj[key] = (time === 1 ? ((mongoStats.current
+                    (obj as Obj)[key] = (time === 1 ? ((mongoStats.current
                       .games.won || 0)
               / mongoStats.current
                 .games.played || 1) : ((mongoStats.scores[mongoStats.scores.length - time + 1]
@@ -407,12 +433,12 @@ class Overwatch {
                   .games.won || 0)
             / mongoStats.scores[mongoStats.scores.length - time]
               .games.played || 1);
-                    if (obj[key] > 0) {
-                      obj[key] = Slope.INCREASING;
-                    } else if (obj[key] < 0) {
-                      obj[key] = Slope.DECREASING;
+                    if ((obj as Obj)[key] > 0) {
+                      (obj as Obj)[key] = Slope.INCREASING;
+                    } else if ((obj as Obj)[key] < 0) {
+                      (obj as Obj)[key] = Slope.DECREASING;
                     } else {
-                      obj[key] = Slope.TIED;
+                      (obj as Obj)[key] = Slope.TIED;
                     }
                     break;
                   default:
@@ -426,13 +452,13 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = mongoStats.scores[mongoStats.scores.length - time]
+                        (obj as Obj)[key] = mongoStats.scores[mongoStats.scores.length - time]
                           .main || '';
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = time === 1 ? mongoStats.current
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = time === 1 ? mongoStats.current
                           .main || '' : mongoStats.scores[mongoStats.scores.length - time + 1].main;
                         break;
                       default:
@@ -444,14 +470,15 @@ class Overwatch {
                       case 'previous':
                         if (!mongoStats.scores
                         || mongoStats.scores.length < time) break;
-                        obj[key] = heroes[mongoStats.scores[mongoStats.scores.length - time]
-                          .main] || '';
+                        (obj as Obj)[key] = heroes[
+                          mongoStats.scores[mongoStats.scores.length - time]
+                            .main as keyof typeof heroes] || '';
                         break;
                       case 'current':
                         if (time > 1 && (!mongoStats.scores
-                        || !mongoStats.scores.length < time - 1)) break;
-                        obj[key] = time === 1 ? heroes[mongoStats.current
-                          .main] || '' : heroes[mongoStats.scores[mongoStats.scores.length - time + 1].main];
+                        || !(mongoStats.scores.length < time - 1))) break;
+                        (obj as Obj)[key] = time === 1 ? heroes[mongoStats.current
+                          .main as keyof typeof heroes] || '' : heroes[mongoStats.scores[mongoStats.scores.length - time + 1].main as keyof typeof heroes];
                         break;
                       default:
                         break;
@@ -469,26 +496,28 @@ class Overwatch {
             break;
           case Sources.OVERSMASH:
             try {
-              if (!oversmashStats || isEmpty(oversmashStats.stats.competitive)) break;
+              if (!oversmashStats
+                || JSON.stringify(oversmashStats.stats.competitive) === JSON.stringify({})) break;
               switch (args[0]) {
                 case 'endorsement':
-                  obj[key] = oversmashStats.stats.endorsement_level;
+                  (obj as Obj)[key] = oversmashStats.stats.endorsement_level;
                   break;
                 case 'sr':
                   switch (args[1]) {
                     case 'highest':
-                      obj[key] = Math.max(oversmashStats.stats.competitive_rank.damage,
-                        oversmashStats.stats.competitive_rank.support,
-                        oversmashStats.stats.competitive_rank.tank);
+                      (obj as Obj)[key] = Math.max(oversmashStats.stats.competitive_rank.damage
+                        || 0,
+                      oversmashStats.stats.competitive_rank.support || 0,
+                      oversmashStats.stats.competitive_rank.tank || 0);
                       break;
                     case Roles.SUPPORT:
-                      obj[key] = oversmashStats.stats.competitive_rank.support || 0;
+                      (obj as Obj)[key] = oversmashStats.stats.competitive_rank.support || 0;
                       break;
                     case Roles.DAMAGE:
-                      obj[key] = oversmashStats.stats.competitive_rank.damage || 0;
+                      (obj as Obj)[key] = oversmashStats.stats.competitive_rank.damage || 0;
                       break;
                     case Roles.TANK:
-                      obj[key] = oversmashStats.stats.competitive_rank.tank || 0;
+                      (obj as Obj)[key] = oversmashStats.stats.competitive_rank.tank || 0;
                       break;
                     default:
                       break;
@@ -497,67 +526,71 @@ class Overwatch {
                 case 'matches':
                   switch (args[1]) {
                     case 'played':
-                      obj[key] = oversmashStats.stats.competitive.all.game.games_played || 0;
+                      (obj as Obj)[key] = oversmashStats.stats.competitive.all.game?.games_played
+                      || 0;
                       break;
                     case 'won':
-                      obj[key] = oversmashStats.stats.competitive.all.game.games_won || 0;
+                      (obj as Obj)[key] = oversmashStats.stats.competitive.all.game?.games_won
+                      || 0;
                       break;
                     default:
                       break;
                   }
                   break;
                 case 'winrate':
-                  obj[key] = (`${(((oversmashStats.stats.competitive.all.game.games_won || 0)
-              / oversmashStats.stats.competitive.all.game.games_played || 1) * 100).toFixed(2)}%`);
+                  (obj as Obj)[key] = (`${(((oversmashStats.stats.competitive.all.game?.games_won || 0)
+              / (oversmashStats.stats.competitive.all.game?.games_played || 1)) * 100).toFixed(2)}%`);
                   break;
                 case 'main':
                   switch (args[1]) {
                     case 'hero':
-                      obj[key] = Object.keys(oversmashStats.stats.competitive)
+                      (obj as Obj)[key] = Object.keys(oversmashStats.stats.competitive)
                         .reduce((previousValue, currentValue) => {
                           if (previousValue === '' || previousValue === 'all') return currentValue;
                           let previousTimePlayed = oversmashStats.stats.competitive[previousValue]
-                            .game.time_played;
+                            .game?.time_played;
                           let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
-                            .game.time_played;
+                            .game?.time_played;
                           if (typeof currentTimePlayed === 'undefined') return previousValue;
-                          if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
+                          if (previousTimePlayed?.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
                           if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
-                          return previousTimePlayed > currentTimePlayed ? previousValue
-                            : currentValue;
+                          return previousTimePlayed && previousTimePlayed
+                          > currentTimePlayed ? previousValue : currentValue;
                         }, '');
                       break;
                     case 'role':
-                      obj[key] = heroes[Object.keys(oversmashStats.stats.competitive)
+                      (obj as Obj)[key] = heroes[Object.keys(oversmashStats.stats.competitive)
                         .reduce((previousValue, currentValue) => {
                           if (previousValue === '' || previousValue === 'all') return currentValue;
                           let previousTimePlayed = oversmashStats.stats.competitive[previousValue]
-                            .game.time_played;
+                            .game?.time_played;
                           let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
-                            .game.time_played;
+                            .game?.time_played;
                           if (typeof currentTimePlayed === 'undefined') return previousValue;
-                          if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
+                          if (previousTimePlayed?.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
                           if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
-                          return previousTimePlayed > currentTimePlayed ? previousValue
+                          return previousTimePlayed && previousTimePlayed > currentTimePlayed
+                            ? previousValue
                             : currentValue;
-                        }, '')];
+                        }, '') as keyof typeof heroes];
                       break;
                     case 'time':
-                      obj[key] = oversmashStats.stats
+                      (obj as Obj)[key] = oversmashStats.stats
                         .competitive[Object.keys(oversmashStats.stats.competitive)
                           .reduce((previousValue, currentValue) => {
                             if (previousValue === '' || previousValue === 'all') return currentValue;
                             let previousTimePlayed = oversmashStats.stats.competitive[previousValue]
-                              .game.time_played;
+                              .game?.time_played;
                             let currentTimePlayed = oversmashStats.stats.competitive[currentValue]
-                              .game.time_played;
+                              .game?.time_played;
                             if (typeof currentTimePlayed === 'undefined') return previousValue;
-                            if (previousTimePlayed.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
+                            if (previousTimePlayed?.length === 5) previousTimePlayed = `00:${previousTimePlayed}`;
                             if (currentTimePlayed.length === 5) currentTimePlayed = `00:${currentTimePlayed}`;
-                            return previousTimePlayed > currentTimePlayed ? previousValue
+                            return previousTimePlayed && previousTimePlayed > currentTimePlayed
+                              ? previousValue
                               : currentValue;
-                          }, '')].game.time_played;
-                      if (obj[key].length === 5) obj[key] = `00:${obj[key]}`;
+                          }, '')].game?.time_played as string;
+                      if (((obj as Obj)[key] as string).length === 5) (obj as Obj)[key] = `00:${(obj as Obj)[key]}`;
                       break;
                     default:
                       break;
@@ -656,8 +689,8 @@ class Overwatch {
 
   /**
  * Gets the image URL of the player's rank
- * @param {Number} rank Player's SR
- * @returns {String} Image URL
+ * @param rank Player's SR
+ * @returns Image URL
  */
   public getRankImageURL(rank: number): string {
     const baseUrl = 'https://d1u1mce87gyfbn.cloudfront.net/game/rank-icons/rank-';
@@ -684,40 +717,40 @@ class Overwatch {
 
   public async getPlayerInfo(tag: string, platform: string, forceUpdate: boolean): Promise<any> {
     let playerStats;
-    if (playerCache[`${tag}${platform}`]) {
+    if (this.playerCache[`${tag}${platform}`]) {
       const now = new Date().getDate();
       // 1000 * 60 * 5 = 300.000ms
-      if (now - playerCache[`${tag}${platform}`].time >= 300000 || forceUpdate === true) {
+      if (now - this.playerCache[`${tag}${platform}`].time >= 300000 || forceUpdate === true) {
         playerStats = await oversmash().playerStats(tag, platform);
-        playerCache[`${tag}${platform}`].info = playerStats;
-        playerCache[`${tag}${platform}`].time = now;
-      } else playerStats = playerCache[`${tag}${platform}`].info;
-      playerCache[`${tag}${platform}`].views += 1;
+        this.playerCache[`${tag}${platform}`].stats = playerStats;
+        this.playerCache[`${tag}${platform}`].time = now;
+      } else playerStats = this.playerCache[`${tag}${platform}`].stats;
+      this.playerCache[`${tag}${platform}`].views += 1;
     } else {
       playerStats = await oversmash().playerStats(tag, platform);
-      if (Object.keys(playerCache).length >= (config.maxBufferLength || 64)) {
-        let lessPopular = Object.keys(playerCache)[0];
-        Object.keys(playerCache).forEach((savedPlayer) => {
-          if (iVal(playerCache, savedPlayer).views < iVal(playerCache, lessPopular)) {
+      if (Object.keys(this.playerCache).length >= (this.maxBufferLength || 64)) {
+        let lessPopular = Object.keys(this.playerCache)[0];
+        Object.keys(this.playerCache).forEach((savedPlayer) => {
+          if (this.playerCache[savedPlayer].views < this.playerCache[lessPopular].views) {
             lessPopular = savedPlayer;
           }
         });
-        delete playerCache[lessPopular];
+        delete this.playerCache[lessPopular];
       }
-      playerCache[`${tag}${platform}`] = { info: playerStats, time: new Date().getTime(), views: 1 };
+      this.playerCache[`${tag}${platform}`] = { stats: playerStats, time: new Date().getTime(), views: 1 };
     }
     return playerStats;
   }
 
   public fillObject = async (
-    obj,
+    obj: Obj,
     tag: string,
     platform: string,
     time: number,
     forceUpdate: boolean,
-  ): Promise<any> => {
+  ): Promise<boolean> => {
     const playerStats = await this.getPlayerInfo(tag, platform, forceUpdate);
-    if (isEmpty(playerStats.stats.competitive)) return false;
+    if (JSON.stringify(playerStats.stats.competitive) === JSON.stringify({})) return false;
     let exists = false;
     await mongo
       .database()
@@ -726,11 +759,11 @@ class Overwatch {
       .equalTo(tag) // ADICIONAR VERIFICAÇÃO DE PLATAFORMA!!!
       .once('value', async (snapshot) => {
         if (snapshot.val()) {
-          stringToInfo(obj, playerStats, fVal(snapshot.val()), time);
+          this.stringToInfo(obj, time, playerStats, fVal(snapshot.val()));
           exists = true;
         }
       });
-    if (!exists) stringToInfo(obj, playerStats);
+    if (!exists) this.stringToInfo(obj, time, playerStats);
     return true;
   }
 }

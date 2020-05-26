@@ -715,8 +715,12 @@ class Overwatch {
     return baseUrl + tier + suffix;
   }
 
-  public async getPlayerInfo(tag: string, platform: string, forceUpdate: boolean): Promise<any> {
-    let playerStats;
+  public async getPlayerInfo(
+    tag: string,
+    platform: string,
+    forceUpdate: boolean,
+  ): Promise<PlayerStats> {
+    let playerStats: PlayerStats;
     if (this.playerCache[`${tag}${platform}`]) {
       const now = new Date().getDate();
       // 1000 * 60 * 5 = 300.000ms

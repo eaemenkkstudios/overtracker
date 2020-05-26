@@ -9,7 +9,7 @@ export const UserSchema = createSchema({
     hash: Type.string({ required: true }),
     salt: Type.string({ required: true }),
   }),
-  following: Type.array().of(Type.ref(Type.string()).to('Player', PlayerSchema)),
+  following: Type.array({ required: true, default: [] }).of(Type.ref(Type.string()).to('Player', PlayerSchema)),
 });
 
 export default typedModel('User', UserSchema);

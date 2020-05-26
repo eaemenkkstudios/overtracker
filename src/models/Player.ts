@@ -22,7 +22,7 @@ export const PlayerSchema = createSchema({
   platform: Type.string({ required: true }),
   lastUpdate: Type.number({ required: true }),
   portrait: Type.string(),
-  scores: Type.array({ required: true, default: [] }).of(Type.object().of(ScoreSchema)),
+  scores: Type.array({ required: true, default: [] }).of(ScoreSchema),
   current: Type.object().of(ScoreSchema),
 });
 

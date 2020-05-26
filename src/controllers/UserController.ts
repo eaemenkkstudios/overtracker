@@ -19,7 +19,7 @@ class UserController {
       password: Encrypter.hashPassword(password),
     };
     return User.create(user)
-      .then((newUser) => res.json(newUser))
+      .then((newUser) => res.json({ id: newUser._id }))
       .catch((err) => res.json(err));
   }
 }

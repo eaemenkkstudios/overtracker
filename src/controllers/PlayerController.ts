@@ -4,7 +4,7 @@ import overwatch, { Roles, Obj } from '../overwatch';
 import Utils from '../utils/Utils';
 import Player, { PlayerProps, PlayerDoc } from '../models/Player';
 import heroes from '../heroes.json';
-import { UserDoc } from '../models/User';
+import User, { UserDoc } from '../models/User';
 
 interface FollowedPlayer {
   id: string;
@@ -152,12 +152,12 @@ class PlayerController {
     this.maxTagsPerRole = process.env.MAX_TAGS_PER_ROLE || '';
   }
 
-  public async makeScore(
+  public makeScore = async (
     tag: string,
     platform: string,
     extended: boolean,
     forceUpdate: boolean,
-  ): Promise<Obj | undefined> {
+  ): Promise<Obj | undefined> => {
     const score: Obj = {
       type: 'Obj',
       date: new Date().getTime(),
@@ -167,28 +167,21 @@ class PlayerController {
     return success ? score : undefined;
   }
 
-  public async makeFeed(
+  public makeFeed = async (
     role: string,
     time: number,
     generic: boolean,
     page: number,
-    customList: PlayerProps[],
-  ): Promise<Obj[]> {
+    customList?: PlayerProps[],
+  ): Promise<Obj[]> => {
     const finalCards: Obj[] = [];
     let players: PlayerProps[] = [];
     if (customList) {
       players = customList;
     } else {
-      players = await Player.find();
-      // players = (await firebase
-      //   .database()
-      //   .ref('battletags')
-      //   .orderByChild(`current/rank/${role}`)
-      //   .limitToLast(+this.maxTagsPerRole * page)
-      //   .once('value')).val();
-      // Object.keys(players).forEach((key, i) => {
-      //   if (i < +this.maxTagsPerRole * (page - 1)) delete players[key];
-      // });
+      players = await Player.find()
+        .skip((page - 1) * +this.maxTagsPerRole)
+        .limit(+this.maxTagsPerRole);
     }
 
     await Promise.all(players.map(async (player) => {
@@ -350,7 +343,10 @@ class PlayerController {
    * @param platform Player's platform
    * @returns The database referece or `undefined`
    */
-  public async registerBattleTag(tag: string, platform: string): Promise<any | undefined> {
+  public registerBattleTag = async (
+    tag: string,
+    platform: string,
+  ): Promise<PlayerDoc | undefined> => {
     platform = platform || 'pc';
     const player = await oversmash().player(tag, platform);
     if (!player.accounts.length) return undefined;
@@ -385,7 +381,6 @@ class PlayerController {
       };
     }
     return Player.create(finalStats);
-    // return firebase.database().ref('battletags').push(finalStats);
   }
 
   /**
@@ -396,24 +391,6 @@ class PlayerController {
     const currentTime = new Date().getTime();
     // 60 * 60 * 24 * 1000 / 4 = 8640000 / 4 = 24hrs / 4 = 6hrs
     return Player.find({ lastUpdate: { $lte: currentTime - (8640000 / 4) } });
-    // return firebase
-    //   .database()
-    //   .ref('battletags')
-    //   .once('value', (snapshot) => {
-    //     if (snapshot.val()) {
-    //       Object.keys(snapshot.val()).forEach((player) => {
-    //         if (snapshot.val()[player].current) {
-    //           if (currentTime - snapshot.val()[player].lastUpdate >= 8640000 / 24) {
-    //             outdatedPlayers.push({
-    //               tag: snapshot.val()[player].tag,
-    //               platform: snapshot.val()[player].platform,
-    //             });
-    //           }
-    //         }
-    //       });
-    //     }
-    //   })
-    //   .then(() => outdatedPlayers);
   }
 
   /**
@@ -421,7 +398,7 @@ class PlayerController {
    * @param tag Player's battletag
    * @param platform Player's platform
    */
-  public async updatePlayer(tag: string, platform: string): Promise<void> {
+  public updatePlayer = async (tag: string, platform: string): Promise<void> => {
     const [newScore, newPlayer] = await Promise.all(
       [this.makeScore(tag, platform, false, true), oversmash().player(tag)],
     );
@@ -446,103 +423,43 @@ class PlayerController {
     player.current = newScore as unknown as typeof player.current;
     player.lastUpdate = new Date().getTime();
     await player.save();
-
-    // await firebase
-    //   .database()
-    //   .ref('battletags')
-    //   .orderByChild('tag')
-    //   .equalTo(tag)
-    //   .once('value', async (snapshot) => {
-    //     const lastScore = fVal(snapshot.val()).current;
-    //     const hasChanged = JSON.stringify(lastScore.games) !== JSON.stringify(newScore.games)
-    //     || JSON.stringify(lastScore.rank) !== JSON.stringify(newScore.rank);
-    //     let newStats = {};
-    //     if (fVal(snapshot.val()).scores) {
-    //       newStats = {
-    //         [fKey(snapshot.val())]: {
-    //           tag,
-    //           platform,
-    //           portrait: newPlayer.accounts
-    //             .find((account) => account.platform === platform).portrait,
-    //           scores: hasChanged ? [
-    //             ...fVal(snapshot.val()).scores,
-    //             fVal(snapshot.val()).current,
-    //           ] : [...fVal(snapshot.val()).scores],
-    //           lastUpdate: new Date().getTime(),
-    //           current: newScore,
-    //         },
-    //       };
-    //     } else {
-    //       newStats = {
-    //         [fKey(snapshot.val())]: {
-    //           tag,
-    //           platform,
-    //           portrait: newPlayer.accounts
-    //             .find((account) => account.platform === platform).portrait,
-    //           scores: hasChanged ? [fVal(snapshot.val()).current] : [],
-    //           lastUpdate: new Date().getTime(),
-    //           current: newScore,
-    //         },
-    //       };
-    //     }
-    //     await snapshot.ref.update(newStats);
-    //   });
   }
 
-  public async getLocalFeed(req: Request, res: Response): Promise<Response | void> {
+  public getLocalFeed = async (req: Request, res: Response): Promise<Response> => {
     const { page = 1, time = 1 } = req.query;
-    const { authorization } = req.headers;
+    const { session } = req;
+    if (!session) return res.status(401).send();
+    const user = session.user as UserDoc;
+    await user.populate({
+      path: 'following',
+      options: {
+        limit: +this.maxTagsPerRole,
+        skip: (+page - 1) * +this.maxTagsPerRole,
+      },
+    }).execPopulate();
+
     let finalFeed: Obj[] = [];
 
-    const playersList = {};
-    const auth = await firebase.auth().verifyIdToken(authorization)
-      .catch(() => res.status(400).send());
-
-    if (auth.uid) {
-      const following = (await firebase
-        .database()
-        .ref('accounts')
-        .child(auth.uid)
-        .child('following')
-        .orderByKey()
-        .limitToLast(+this.maxTagsPerRole * page)
-        .once('value')).val();
-      if (following) {
-        await Promise.all(Object.values(following).map(async (id, i) => {
-          if (i >= +this.maxTagsPerRole) return;
-          return firebase
-            .database()
-            .ref('battletags')
-            .orderByKey()
-            .equalTo(id)
-            .once('value', (player) => {
-              playersList[fKey(player.val())] = fVal(player.val());
-            });
-        }));
-      }
-      const feeds = await Promise.all(Object.values(Roles).map(
-        async (role, i) => this.makeFeed(role, +time, i === +page
-          % Object.keys(Roles).length, +page, playersList),
-      ));
-      feeds.forEach((feed) => {
-        finalFeed = Utils.shuffle(finalFeed.concat(feed));
-      });
-      finalFeed = finalFeed.filter((v, i, o) => o.indexOf(v) === i);
-      return res.json(finalFeed);
-    }
-  }
-
-  public async getGlobalFeed(req: Request, res: Response): Promise<Response> {
-    let { page, time } = req.query;
-    time = time || 1;
-    page = page || 1;
-    let finalFeed = [];
-
     const feeds = await Promise.all(Object.values(Roles).map(
-      async (role) => makeFeed(role, time, true, page),
+      async (role, i) => this.makeFeed(role, +time, i === +page
+        % Object.keys(Roles).length, +page, user.following as PlayerProps[]),
     ));
     feeds.forEach((feed) => {
-      finalFeed = shuffle(finalFeed.concat(feed));
+      finalFeed = Utils.shuffle(finalFeed.concat(feed));
+    });
+    finalFeed = finalFeed.filter((v, i, o) => o.indexOf(v) === i);
+    return res.status(200).json(finalFeed);
+  }
+
+  public getGlobalFeed = async (req: Request, res: Response): Promise<Response> => {
+    const { page = 1, time = 1 } = req.query;
+    let finalFeed: Obj[] = [];
+
+    const feeds = await Promise.all(Object.values(Roles).map(
+      async (role, i) => this.makeFeed(role, +time, i === 0, +page),
+    ));
+    feeds.forEach((feed) => {
+      finalFeed = Utils.shuffle(finalFeed.concat(feed));
     });
     finalFeed = finalFeed.filter((v, i, o) => o.indexOf(v) === i);
     return res.json(finalFeed);
@@ -576,47 +493,6 @@ class PlayerController {
       });
     });
     return res.status(200).json(players);
-
-    // firebase.auth().verifyIdToken(token)
-    //   .then(async (userData) => {
-    //     firebase
-    //       .database()
-    //       .ref('accounts')
-    //       .child(userData.uid)
-    //       .child('following')
-    //       .once('value', (snapshot) => {
-    //         firebase
-    //           .database()
-    //           .ref('battletags')
-    //           .once('value', (snap) => {
-    //             const followedPlayers = snapshot.val();
-    //             if (!followedPlayers) return;
-    //             const playersInfo = snap.val();
-    //             const tagIds = Object.keys(followedPlayers).map((id) => followedPlayers[id]);
-    //             const players = [];
-    //             Object.keys(playersInfo).forEach((player) => {
-    //               if (!playersInfo[player].current) return;
-    //               if (tagIds.indexOf(player) !== -1) {
-    //                 players.push({
-    //                   id: player,
-    //                   portrait: playersInfo[player].portrait,
-    //                   current: {
-    //                     endorsement: playersInfo[player].current.endorsement,
-    //                     role: overwatch.heroes[playersInfo[player].current.main],
-    //                   },
-    //                   platform: overwatch.friendlyPlatforms[(playersInfo[player].platform)],
-    //                   tag: playersInfo[player].tag,
-    //                 });
-    //               }
-    //             });
-    //             res.status(200).json(players);
-    //           });
-    //       })
-    //       .then((snap) => {
-    //         if (!snap.val()) res.status(200).json([]);
-    //       });
-    //   })
-    //   .catch(() => res.status(401).send());
   }
 
   /**
@@ -625,40 +501,56 @@ class PlayerController {
    * @param {String} req HTTP request data
    * @param {String} res HTTP response data
    */
-  public async getStats(req: Request, res: Response): Promise<Response | void> {
-    const token = req.headers.authorization;
+  public getStats = async (req: Request, res: Response): Promise<Response> => {
     const { tagId } = req.params;
-    firebase.auth().verifyIdToken(token)
-      .then(async () => {
-        await firebase
-          .database()
-          .ref('battletags')
-          .orderByKey()
-          .equalTo(tagId)
-          .once('value', async (snapshot) => {
-            if (!snapshot.val()) return res.status(400).send();
-            const { tag, platform, portrait } = fVal(snapshot.val());
-            const newScore = await this.makeScore(tag, platform, true, false);
-            if (!newScore) return res.status(404).send();
-            const stats = {
-              tag,
-              platform,
-              portrait,
-              scores: [] as Obj[],
-              now: this.makeFriendlyScore(newScore),
-            };
-            if (fVal(snapshot.val()).current) {
-              stats.scores.push(this.makeFriendlyScore(fVal(snapshot.val()).current));
-            }
-            if (fVal(snapshot.val()).scores) {
-              fVal(snapshot.val()).scores.reverse().forEach((score) => {
-                stats.scores.push(this.makeFriendlyScore(score));
-              });
-            }
-            res.status(200).json(stats);
-          });
-      })
-      .catch(() => res.status(401).send());
+
+    const player = await Player.findById(tagId);
+    if (!player) return res.status(404).send();
+
+    const newScore = await this.makeScore(player.tag, player.platform, true, false);
+    if (!newScore) return res.status(404).send();
+
+    const stats = {
+      tag: player.tag,
+      platform: player.platform,
+      portrait: player.portrait,
+      scores: [] as Obj[],
+      now: this.makeFriendlyScore(newScore),
+    };
+
+    if (player.current) {
+      stats.scores.push(this.makeFriendlyScore({
+        type: 'Obj',
+        ...player.current,
+        rank: {
+          type: 'Obj',
+          ...player.current.rank,
+        },
+        games: {
+          type: 'Obj',
+          ...player.current.games,
+        },
+      }));
+    }
+
+    if (player.scores.length > 0) {
+      player.scores.reverse().forEach((score) => {
+        stats.scores.push(this.makeFriendlyScore({
+          type: 'Obj',
+          ...score,
+          rank: {
+            type: 'Obj',
+            ...score.rank,
+          },
+          games: {
+            type: 'Obj',
+            ...score.games,
+          },
+        }));
+      });
+    }
+
+    return res.status(200).json(stats);
   }
 
   /**
@@ -667,45 +559,28 @@ class PlayerController {
    * @param req HTTP request data
    * @param res HTTP response data
    */
-  public async followPlayer(req: Request, res: Response): Promise<Response | void> {
-    const token = req.headers.authorization;
+  public followPlayer = async (req: Request, res: Response): Promise<Response | void> => {
     const { tag, platform } = req.body;
-    firebase.auth().verifyIdToken(token)
-      .then(async (userData) => {
-        firebase.database().ref('battletags')
-          .orderByChild('tag')
-          .equalTo(tag)
-          .once('value', async (snapshot) => {
-            if (snapshot.val()) {
-              const playerId = fKey(snapshot.val());
-              await firebase.database().ref('accounts')
-                .child(userData.uid)
-                .child('following')
-                .orderByValue()
-                .equalTo(playerId)
-                .once('value', async (snap) => {
-                  if (snap.val()) return res.status(400).send();
-                  await firebase.database()
-                    .ref('accounts')
-                    .child(userData.uid)
-                    .child('following')
-                    .push(playerId);
-                  return res.status(200).send();
-                });
-            } else {
-              const newPlayer = await this.registerBattleTag(tag, platform);
-              if (!newPlayer) return res.status(400).send();
-              await firebase
-                .database()
-                .ref('accounts')
-                .child(userData.uid)
-                .child('following')
-                .push(newPlayer.key);
-              return res.status(201).send();
-            }
-          });
-      })
-      .catch(() => res.status(401).send());
+    const { session } = req;
+    if (!session) return res.status(401).send();
+
+    const user = await User.findById((session.user as UserDoc)._id);
+    if (!user) return res.status(400).send();
+
+    const player = await Player.findOne({ tag, platform });
+    if (player) {
+      if (user.following.indexOf(player._id) !== -1) return res.status(400).send();
+      user.following.push(player._id);
+      await user.save();
+      return res.status(200).send();
+    }
+
+    const newPlayer = await this.registerBattleTag(tag, platform);
+    if (!newPlayer) return res.status(400).send();
+
+    user.following.push(newPlayer._id);
+    await user.save();
+    return res.status(200).send();
   }
 }
 

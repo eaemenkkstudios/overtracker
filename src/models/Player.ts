@@ -2,7 +2,7 @@ import {
   Type, createSchema, typedModel, ExtractDoc, ExtractProps,
 } from 'ts-mongoose';
 
-const ScoreSchema = {
+export const ScoreSchema = {
   date: Type.number({ required: true }),
   endorsement: Type.number({ required: true }),
   games: Type.object().of({
@@ -11,9 +11,9 @@ const ScoreSchema = {
   }),
   main: Type.string({ required: true }),
   rank: Type.object({ required: true }).of({
-    damage: Type.string({ required: true }),
-    support: Type.string({ required: true }),
-    tank: Type.string({ required: true }),
+    damage: Type.number({ required: true }),
+    support: Type.number({ required: true }),
+    tank: Type.number({ required: true }),
   }),
 };
 

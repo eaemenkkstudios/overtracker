@@ -47,4 +47,8 @@ routes.post('/login', Validation.authHeader, Controllers.Session.create);
 
 routes.delete('/logout', Validation.authHeader, Controllers.Session.delete);
 
+routes.get('/forgotpassword/:token', Controllers.User.forgotPasswordPage);
+routes.post('/forgotpassword', Validation.forgotPassword, Controllers.User.forgotPassword);
+routes.post('/resetpassword', Validation.resetPassword, Controllers.User.resetPassword);
+
 export default routes;

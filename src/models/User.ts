@@ -9,6 +9,8 @@ export const UserSchema = createSchema({
     hash: Type.string({ required: true }),
     salt: Type.string({ required: true }),
   }),
+  resetPasswordToken: Type.string(),
+  resetPasswordExpires: Type.number(),
   following: Type.array({ required: true, default: [] }).of(Type.ref(Type.string()).to('Player', PlayerSchema)),
 });
 

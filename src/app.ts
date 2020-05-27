@@ -1,4 +1,6 @@
 import express from 'express';
+import bodyParser from 'body-parser';
+import favicon from 'serve-favicon';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import path from 'path';
@@ -20,6 +22,9 @@ class App {
   }
 
   private middlewares(): void {
+    this.express.set('view engine', 'ejs');
+    this.express.use(favicon(path.resolve(__dirname, '..', 'assets', 'favicon.png')));
+    this.express.use(bodyParser.urlencoded({ extended: true }));
     this.express.use(express.json());
     this.express.use(cors());
   }
@@ -42,6 +47,8 @@ class App {
   private routes(): void {
     this.express.use('/images', express.static(path.resolve(__dirname, '..', 'uploads')));
     this.express.use(routes);
+    this.express.get('/404', (req, res) => res.render('404'));
+    this.express.get('/*', (req, res) => res.redirect('/404'));
     this.express.use(errors());
   }
 }

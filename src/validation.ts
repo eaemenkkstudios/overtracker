@@ -41,6 +41,20 @@ class Validation {
     }),
   });
 
+  public forgotPassword = celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      email: Joi.string().email().required(),
+    }),
+  })
+
+  public resetPassword = celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      token: Joi.string().required(),
+      newPass: Joi.string().required(),
+      confirmNewPass: Joi.string().required(),
+    }),
+  })
+
   public async validateSession(
     req: Request,
     res: Response,

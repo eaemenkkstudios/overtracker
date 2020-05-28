@@ -62,9 +62,6 @@ class Validation {
     res: Response,
     next: NextFunction,
   ): Promise<Response | void> {
-    console.log('Validate', req.sessionID);
-    console.log('Validate', req.isAuthenticated());
-    console.log('Validate', req.user);
     if (req.isAuthenticated()) return next();
     return res.status(401).send();
   }

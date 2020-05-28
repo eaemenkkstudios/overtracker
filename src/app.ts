@@ -25,6 +25,7 @@ class App {
   }
 
   private middlewares(): void {
+    this.express.disable('x-powered-by');
     this.express.use(favicon(path.resolve(__dirname, '..', 'assets', 'favicon.png')));
     this.express.use(bodyParser.urlencoded({ extended: true }));
     this.express.use(express.json());

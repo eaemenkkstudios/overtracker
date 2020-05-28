@@ -1,6 +1,7 @@
 import { Response, Request } from 'express';
 import passport from 'passport';
 import { Strategy } from 'passport-bnet';
+import session from 'express-session';
 import User from '../models/User';
 import Player from '../models/Player';
 import PlayerController from './PlayerController';
@@ -53,7 +54,6 @@ class SessionController {
           user.following.push(player._id);
           await user.save();
         }
-        console.log('SessionID', req.sessionID);
         return done(null, {
           battletag: profile.battletag,
           bnetId: profile.id,
@@ -73,7 +73,15 @@ class SessionController {
 
   public async loginWithBnet(req: Request, res: Response): Promise<void> {
     const { code } = req.query;
-    return res.redirect(`overtracker://login?code=${code}&session=${req.sessionID}`);
+    const cookies = req.headers.cookie?.split('; ') || [];
+    let sessionId: string | undefined;
+    cookies.forEach((cookie) => {
+      const cookieParts = cookie.split('=');
+      if (cookieParts[0] === 'connect.sid') {
+        sessionId = cookieParts.pop();
+      }
+    });
+    return res.redirect(`overtracker://login?code=${code}&session=${sessionId}`);
   }
 }
 

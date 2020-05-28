@@ -1,37 +1,79 @@
 import { Response, Request } from 'express';
-import basicAuth from 'basic-auth';
-import Encrypter from '../utils/Encrypter';
-import SessionManager from '../utils/SessionManager';
+import passport from 'passport';
+import { Strategy } from 'passport-bnet';
 import User from '../models/User';
+import Player from '../models/Player';
+import PlayerController from './PlayerController';
+
+interface Profile {
+  sub?: string;
+  id: number;
+  battletag?: string;
+  provider?: string;
+  token: string;
+}
 
 class SessionController {
-  public async create(req: Request, res: Response): Promise<Response> {
-    const auth = basicAuth(req);
-    if (!auth) return res.status(400).send();
+  private bnetId: string;
 
-    const { name: email, pass: password } = auth;
+  private bnetSecret: string;
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).send();
+  private serverUrl: string;
 
-    SessionManager.deleteSessionByUser(user._id);
-    if (
-      Encrypter.sha256(password, user.password.salt)
-          === user.password.hash
-    ) {
-      const token = await SessionManager.addSession(user);
-      return res.status(200).json({ token });
-    }
+  constructor() {
+    this.bnetId = process.env.BNET_ID || '';
+    this.bnetSecret = process.env.BNET_SECRET || '';
+    this.serverUrl = process.env.SERVER_URL || '';
+    passport.use(
+      new Strategy({
+        clientID: this.bnetId,
+        clientSecret: this.bnetSecret,
+        callbackURL: `${this.serverUrl}/auth/bnet/callback`,
+        passReqToCallback: true,
+      }, async (
+        req: Request,
+        acessToken: string,
+        refreshToken: string,
+        profile: Profile,
+        done: (a: unknown, b: unknown) => unknown,
+      ) => {
+        if (!profile.battletag) return done(null, false);
+        let user = await User.findOne({ battletag: profile.battletag, bnetId: profile.id });
+        if (!user) {
+          user = await User.create({ battletag: profile.battletag, bnetId: profile.id });
+        }
+        const player = await Player.findOne({ tag: profile.battletag });
+        if (!player) {
+          const newPlayer = await PlayerController.registerBattleTag(profile.battletag);
+          if (newPlayer) {
+            user.following.push(newPlayer._id);
+            await user.save();
+          }
+        } else if (user.following.indexOf(player._id) === -1) {
+          user.following.push(player._id);
+          await user.save();
+        }
+        console.log('SessionID', req.sessionID);
+        return done(null, {
+          battletag: profile.battletag,
+          bnetId: profile.id,
+          token: acessToken,
+        });
+      }),
+    );
 
-    return res.status(401).send();
+    passport.serializeUser((user, done) => {
+      done(null, user);
+    });
+
+    passport.deserializeUser((user, done) => {
+      done(null, user);
+    });
   }
 
-  public async delete(req: Request, res: Response): Promise<Response> {
-    const token = req.headers.authorization;
-    if (!token) return res.status(403).send();
-    return res
-      .status((await SessionManager.deleteSession(token)) ? 204 : 400)
-      .send();
+  public async loginWithBnet(req: Request, res: Response): Promise<void> {
+    const { code } = req.query;
+    return res.redirect(`overtracker://login?code=${code}&session=${req.sessionID}`);
   }
 }
 

@@ -4,7 +4,7 @@ import overwatch, { Roles, Obj } from '../overwatch';
 import Utils from '../utils/Utils';
 import Player, { PlayerProps, PlayerDoc } from '../models/Player';
 import heroes from '../heroes.json';
-import User, { UserDoc } from '../models/User';
+import User from '../models/User';
 
 interface FollowedPlayer {
   id: string;
@@ -18,7 +18,9 @@ interface FollowedPlayer {
 }
 
 class PlayerController {
-  public maxTagsPerRole: string;
+  private hoursToUpdatePlayers: number;
+
+  private maxTagsPerRole: string;
 
   public readonly scoreCard: Obj = {
     type: 'Obj',
@@ -150,6 +152,7 @@ class PlayerController {
 
   constructor() {
     this.maxTagsPerRole = process.env.MAX_TAGS_PER_ROLE || '';
+    this.hoursToUpdatePlayers = +(process.env.HOURS_TO_UPDATE_PLAYERS || 24);
   }
 
   public makeScore = async (
@@ -345,9 +348,8 @@ class PlayerController {
    */
   public registerBattleTag = async (
     tag: string,
-    platform: string,
+    platform = 'pc',
   ): Promise<PlayerDoc | undefined> => {
-    platform = platform || 'pc';
     const player = await oversmash().player(tag, platform);
     if (!player.accounts.length) return undefined;
     let platformIndex = -1;
@@ -384,13 +386,15 @@ class PlayerController {
   }
 
   /**
-   * Gets all of the players that haven't been updated in more than 12hrs
+   * Gets all of the players that haven't been updated in greater than the
+   * specified hours
    * @returns Array of outdated players
    */
-  public async getOutdatedPlayers(): Promise<PlayerDoc[]> {
+  public getOutdatedPlayers = async (): Promise<PlayerDoc[]> => {
     const currentTime = new Date().getTime();
-    // 60 * 60 * 24 * 1000 / 4 = 8640000 / 4 = 24hrs / 4 = 6hrs
-    return Player.find({ lastUpdate: { $lte: currentTime - (8640000 / 4) } });
+    return Player.find({
+      lastUpdate: { $lte: currentTime - this.hoursToUpdatePlayers * 1000 * 60 * 60 },
+    });
   }
 
   /**
@@ -427,16 +431,19 @@ class PlayerController {
 
   public getLocalFeed = async (req: Request, res: Response): Promise<Response> => {
     const { page = 1, time = 1 } = req.query;
-    const { session } = req;
-    if (!session) return res.status(401).send();
-    const user = session.user as UserDoc;
-    await user.populate({
+    if (!req.session || !req.user) return res.status(401).send();
+    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
+    const user = await User.findOne({
+      battletag,
+      bnetId,
+    }).populate({
       path: 'following',
       options: {
         limit: +this.maxTagsPerRole,
         skip: (+page - 1) * +this.maxTagsPerRole,
       },
-    }).execPopulate();
+    });
+    if (!user) return res.status(401).send();
 
     let finalFeed: Obj[] = [];
 
@@ -472,10 +479,13 @@ class PlayerController {
    * @param {String} res HTTP response data
    */
   public async getFollowing(req: Request, res: Response): Promise<Response> {
-    const { session } = req;
-    if (!session) return res.status(401).send();
-    const user = session.user as UserDoc;
-    await user.populate('following').execPopulate();
+    if (!req.session || !req.user) return res.status(401).send();
+    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
+    const user = await User.findOne({
+      battletag,
+      bnetId,
+    }).populate('following');
+    if (!user) return res.status(401).send();
     const players: FollowedPlayer[] = [];
     (user.following as PlayerProps[]).forEach((player) => {
       if (!player.current) return;
@@ -537,14 +547,19 @@ class PlayerController {
       player.scores.reverse().forEach((score) => {
         stats.scores.push(this.makeFriendlyScore({
           type: 'Obj',
-          ...score,
+          date: score.date,
+          main: score.main,
+          endorsement: score.endorsement,
           rank: {
             type: 'Obj',
-            ...score.rank,
+            damage: score.rank.damage,
+            support: score.rank.support,
+            tank: score.rank.tank,
           },
           games: {
             type: 'Obj',
-            ...score.games,
+            played: score.games?.played || 0,
+            won: score.games?.won || 0,
           },
         }));
       });
@@ -561,10 +576,13 @@ class PlayerController {
    */
   public followPlayer = async (req: Request, res: Response): Promise<Response | void> => {
     const { tag, platform } = req.body;
-    const { session } = req;
-    if (!session) return res.status(401).send();
+    if (!req.session || !req.user) return res.status(401).send();
+    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
 
-    const user = await User.findById((session.user as UserDoc)._id);
+    const user = await User.findOne({
+      battletag,
+      bnetId,
+    });
     if (!user) return res.status(400).send();
 
     const player = await Player.findOne({ tag, platform });

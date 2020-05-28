@@ -7,10 +7,12 @@ async function updateOutdatedPlayers(): Promise<void> {
   outdatedPlayers.forEach((player) => PlayerController.updatePlayer(player.tag, player.platform));
 }
 
+const hoursToUpdatePlayers = +(process.env.HOURS_TO_UPDATE_PLAYERS || 24);
+
 updateOutdatedPlayers();
 setInterval(async () => {
   updateOutdatedPlayers();
-}, 86400000 / 4); // 1000 * 60 * 60 * 24 / 4 = 86400000s / 4 = 24hrs / 4 = 6hrs
+}, hoursToUpdatePlayers * 1000 * 60 * 60);
 
 const port = process.env.PORT || 8080;
 

@@ -1,4 +1,5 @@
 import express from 'express';
+import passport from 'passport';
 import Validation from './validation';
 import * as Controllers from './controllers';
 
@@ -6,7 +7,6 @@ const routes = express.Router();
 
 routes.post(
   '/follow',
-  Validation.authHeader,
   Validation.validateSession,
   Validation.followPlayer,
   Controllers.Player.followPlayer,
@@ -14,7 +14,6 @@ routes.post(
 
 routes.get(
   '/info/:tagId',
-  Validation.authHeader,
   Validation.validateSession,
   Validation.playerInfo,
   Controllers.Player.getStats,
@@ -22,7 +21,6 @@ routes.get(
 
 routes.get(
   '/following',
-  Validation.authHeader,
   Validation.validateSession,
   Controllers.Player.getFollowing,
 );
@@ -35,20 +33,19 @@ routes.get(
 
 routes.get(
   '/feed/local',
-  Validation.authHeader,
   Validation.validateSession,
   Validation.localFeed,
   Controllers.Player.getLocalFeed,
 );
 
-routes.post('/register', Validation.authHeader, Controllers.User.create);
+routes.get('/teste', Validation.sendMessageBot, Controllers.DialogFlow.sendMessage);
 
-routes.post('/login', Validation.authHeader, Controllers.Session.create);
+routes.get('/auth/bnet', passport.authenticate('bnet'));
 
-routes.delete('/logout', Validation.authHeader, Controllers.Session.delete);
-
-routes.get('/forgotpassword/:token', Controllers.User.forgotPasswordPage);
-routes.post('/forgotpassword', Validation.forgotPassword, Controllers.User.forgotPassword);
-routes.post('/resetpassword', Validation.resetPassword, Controllers.User.resetPassword);
+routes.get(
+  '/auth/bnet/callback',
+  passport.authenticate('bnet', { failureRedirect: '/auth/bnet' }),
+  Controllers.Session.loginWithBnet,
+);
 
 export default routes;

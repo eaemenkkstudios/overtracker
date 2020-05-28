@@ -4,13 +4,8 @@ import {
 import { PlayerSchema } from './Player';
 
 export const UserSchema = createSchema({
-  email: Type.string({ required: true }),
-  password: Type.object({ required: true }).of({
-    hash: Type.string({ required: true }),
-    salt: Type.string({ required: true }),
-  }),
-  resetPasswordToken: Type.string(),
-  resetPasswordExpires: Type.number(),
+  battletag: Type.string({ required: true }),
+  bnetId: Type.number({ required: true }),
   following: Type.array({ required: true, default: [] }).of(Type.ref(Type.string()).to('Player', PlayerSchema)),
 });
 

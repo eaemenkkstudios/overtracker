@@ -1,9 +1,12 @@
 import express from 'express';
+import session from 'express-session';
 import bodyParser from 'body-parser';
 import favicon from 'serve-favicon';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import connectMongo from 'connect-mongo';
 import path from 'path';
+import passport from 'passport';
 import { errors } from 'celebrate';
 
 import routes from './routes';
@@ -22,7 +25,6 @@ class App {
   }
 
   private middlewares(): void {
-    this.express.set('view engine', 'ejs');
     this.express.use(favicon(path.resolve(__dirname, '..', 'assets', 'favicon.png')));
     this.express.use(bodyParser.urlencoded({ extended: true }));
     this.express.use(express.json());
@@ -42,13 +44,21 @@ class App {
         console.log(`Error in DB connection: ${JSON.stringify(err, undefined, 2)}`);
       }
     });
+    const MongoStore = connectMongo(session);
+    this.express.use(session({
+      secret: process.env.SESSION_SECRET || '',
+      resave: false,
+      saveUninitialized: false,
+      rolling: true,
+      store: new MongoStore({ mongooseConnection: mongoose.connection }),
+    }));
+    this.express.use(passport.initialize());
+    this.express.use(passport.session());
   }
 
   private routes(): void {
     this.express.use('/images', express.static(path.resolve(__dirname, '..', 'uploads')));
     this.express.use(routes);
-    this.express.get('/404', (req, res) => res.render('404'));
-    this.express.get('/*', (req, res) => res.redirect('/404'));
     this.express.use(errors());
   }
 }

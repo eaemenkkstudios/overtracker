@@ -1,15 +1,8 @@
 import { celebrate, Segments, Joi } from 'celebrate';
 import { Request, Response, NextFunction } from 'express';
 import overwatch from './overwatch';
-import SessionManager from './utils/SessionManager';
 
 class Validation {
-  public authHeader = celebrate({
-    [Segments.HEADERS]: Joi.object({
-      authorization: Joi.string().required(),
-    }).unknown(),
-  });
-
   public followPlayer = celebrate({
     [Segments.BODY]: Joi.object().keys({
       tag: Joi.string()
@@ -55,19 +48,24 @@ class Validation {
     }),
   })
 
+  public sendMessageBot = celebrate({
+    [Segments.HEADERS]: Joi.object({
+      authorization: Joi.string().required(),
+    }).unknown(),
+    [Segments.BODY]: Joi.object().keys({
+      message: Joi.string().required(),
+    }),
+  })
+
   public async validateSession(
     req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<Response | void> {
-    const token = req.headers.authorization;
-    if (token) {
-      const session = await SessionManager.getSession(token);
-      if (session) {
-        req.session = session;
-        return next();
-      }
-    }
+    console.log('Validate', req.sessionID);
+    console.log('Validate', req.isAuthenticated());
+    console.log('Validate', req.user);
+    if (req.isAuthenticated()) return next();
     return res.status(401).send();
   }
 }

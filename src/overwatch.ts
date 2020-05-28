@@ -733,7 +733,11 @@ class Overwatch {
         });
         delete this.playerCache[lessPopular];
       }
-      this.playerCache[`${tag}${platform}`] = { stats: playerStats, time: new Date().getTime(), views: 1 };
+      this.playerCache[`${tag}${platform}`] = {
+        stats: playerStats,
+        time: new Date().getTime(),
+        views: 1,
+      };
     }
     return playerStats;
   }

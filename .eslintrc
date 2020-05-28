@@ -27,7 +27,8 @@
     "no-console": "off",
     "consistent-return": "off",
     "@typescript-eslint/interface-name-prefix": "off",
-    "import/extensions": "off"
+    "import/extensions": "off",
+    "@typescript-eslint/camelcase": "off"
   },
   "settings": {
     "import/resolver": {

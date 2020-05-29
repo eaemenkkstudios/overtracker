@@ -1,7 +1,6 @@
 import { Response, Request } from 'express';
 import passport from 'passport';
 import { Strategy } from 'passport-bnet';
-import session from 'express-session';
 import User from '../models/User';
 import Player from '../models/Player';
 import PlayerController from './PlayerController';

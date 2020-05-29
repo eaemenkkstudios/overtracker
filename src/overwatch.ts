@@ -44,6 +44,23 @@ class Overwatch {
     this.maxBufferLength = process.env.MAX_BUFFER_LENGTH || '';
   }
 
+  public validateRole(role: string): boolean {
+    let roleIsValid = false;
+    Object.values(Roles).forEach((r) => {
+      if (!roleIsValid) roleIsValid = r.toString() === role;
+    });
+    return roleIsValid;
+  }
+
+  public clearObjTypes = (
+    obj: Obj,
+  ): void => {
+    Object.keys(obj).forEach((key) => {
+      if (((obj as Obj)[key] as Obj).type === 'Obj') return this.clearObjTypes(((obj as Obj)[key] as Obj));
+      if (key === 'type') return delete (obj as Obj)[key];
+    });
+  }
+
   // Transforma uma request de informação na informação requisitada.
   // Exemplo: player.SR.SUPPORT.CURRENT -> 2468
   public stringToInfo = (
@@ -54,10 +71,10 @@ class Overwatch {
   ): void => {
     if (time && time < 1) return;
     Object.keys(obj).forEach((key) => {
-      if (key === 'type') return delete (obj as Obj)[key];
       if (((obj as Obj)[key] as Obj).type === 'Obj') {
         this.stringToInfo((obj as Obj)[key] as Obj, time, oversmashStats, mongoStats);
       } else if (typeof (obj as Obj)[key] === 'string') {
+        if (key === 'type') return;
         const args = ((obj as Obj)[key] as string).split('_');
         switch (args[args.length - 1]) {
           case Sources.MONGO:
@@ -754,6 +771,7 @@ class Overwatch {
     const player = await Player.findOne({ tag, platform });
     if (player) this.stringToInfo(obj, time, playerStats, player);
     else this.stringToInfo(obj, time, playerStats);
+    this.clearObjTypes(obj);
     return true;
   }
 }

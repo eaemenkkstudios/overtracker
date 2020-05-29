@@ -1,6 +1,8 @@
 import { Response, Request } from 'express';
 import oversmash from 'oversmash';
-import overwatch, { Roles, Obj } from '../overwatch';
+import overwatch, {
+  Roles, Obj,
+} from '../overwatch';
 import Utils from '../utils/Utils';
 import Player, { PlayerProps, PlayerDoc } from '../models/Player';
 import heroes from '../heroes.json';
@@ -321,22 +323,25 @@ class PlayerController {
    * @returns Friendly Score Object
    */
   public makeFriendlyScore(score: Obj): Obj {
-    if ((score.main as Obj).type !== 'Obj') {
+    if ((score.main as Obj).type === 'Obj') {
       score.main = {
         type: 'Obj',
-        hero: score.main,
-        role: heroes[score.main as keyof typeof heroes],
+        hero: (score.main as Obj).hero,
+        role: heroes[(score.main as Obj).role as keyof typeof heroes],
       };
     }
 
     Object.keys(score.rank).forEach((rank) => {
+      if (!overwatch.validateRole(rank)) return;
       const img = overwatch.getRankImageURL((score.rank as Obj)[rank] as number);
+      (score.rank as Obj).type = 'Obj';
       (score.rank as Obj)[rank] = {
         type: 'Obj',
         sr: (score.rank as Obj)[rank],
         img,
       };
     });
+    overwatch.clearObjTypes(score);
     return score;
   }
 
@@ -564,7 +569,6 @@ class PlayerController {
         }));
       });
     }
-
     return res.status(200).json(stats);
   }
 

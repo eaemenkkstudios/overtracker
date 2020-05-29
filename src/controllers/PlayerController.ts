@@ -184,9 +184,12 @@ class PlayerController {
     if (customList) {
       players = customList;
     } else {
-      players = await Player.find()
+      const filter = `current.rank.${role}`;
+      players = await Player.find({ [filter]: { $gt: 0 } })
         .skip((page - 1) * +this.maxTagsPerRole)
-        .limit(+this.maxTagsPerRole);
+        .limit(+this.maxTagsPerRole)
+        .sort({ [filter]: 'desc' });
+      console.log(players);
     }
 
     await Promise.all(players.map(async (player) => {
@@ -323,11 +326,11 @@ class PlayerController {
    * @returns Friendly Score Object
    */
   public makeFriendlyScore(score: Obj): Obj {
-    if ((score.main as Obj).type === 'Obj') {
+    if (typeof score.main === 'string') {
       score.main = {
         type: 'Obj',
-        hero: (score.main as Obj).hero,
-        role: heroes[(score.main as Obj).role as keyof typeof heroes],
+        hero: score.main,
+        role: heroes[score.main as keyof typeof heroes],
       };
     }
 

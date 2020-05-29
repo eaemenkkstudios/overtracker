@@ -6,10 +6,31 @@ import * as Controllers from './controllers';
 const routes = express.Router();
 
 routes.post(
-  '/follow',
+  '/followtag',
   Validation.validateSession,
   Validation.followPlayer,
   Controllers.Player.followPlayer,
+);
+
+routes.post(
+  '/followid/:tagId',
+  Validation.validateSession,
+  Validation.playerInfo,
+  Controllers.Player.followPlayerId,
+);
+
+routes.post(
+  '/unfollowid/:tagId',
+  Validation.validateSession,
+  Validation.playerInfo,
+  Controllers.Player.unfollowPlayerId,
+);
+
+routes.get(
+  '/isfollowing/:tagId',
+  Validation.validateSession,
+  Validation.playerInfo,
+  Controllers.Player.isFollowing,
 );
 
 routes.get(
@@ -38,7 +59,12 @@ routes.get(
   Controllers.Player.getLocalFeed,
 );
 
-routes.get('/teste', Validation.sendMessageBot, Controllers.DialogFlow.sendMessage);
+routes.get(
+  '/dialogflow',
+  Validation.validateSession,
+  Validation.sendMessageBot,
+  Controllers.DialogFlow.sendMessage,
+);
 
 routes.get('/auth/bnet', passport.authenticate('bnet'));
 

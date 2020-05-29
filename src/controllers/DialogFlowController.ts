@@ -19,15 +19,17 @@ class DialogFlowController {
 
   public sendMessage = async (req: Request, res: Response): Promise<Response> => {
     const { message }: { message: string; } = req.body;
-    const token = req.headers.authorization;
-    if (!token) return res.status(400).send();
-    const sessionPath = this.sessionsClient.projectAgentSessionPath(this.projectId, token);
+    const { sessionID } = req;
+    if (!req.user) return res.status(400).send();
+    const { battletag } = req.user as { battletag: string };
+    const tag = battletag.split('#')[0];
+    const sessionPath = this.sessionsClient.projectAgentSessionPath(this.projectId, sessionID || '');
 
     const response = await this.sessionsClient.detectIntent({
       session: sessionPath,
       queryInput: {
         text: {
-          text: message,
+          text: `${message} ${tag}`,
           languageCode: 'en',
         },
       },

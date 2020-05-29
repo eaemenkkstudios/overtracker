@@ -606,6 +606,57 @@ class PlayerController {
     await user.save();
     return res.status(200).send();
   }
+
+  public async followPlayerId(req: Request, res: Response): Promise<Response> {
+    const { tagId } = req.params;
+    if (!req.user) return res.status(401).send();
+
+    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
+    const user = await User.findOne({
+      battletag,
+      bnetId,
+    });
+
+    if (!user || user.following.indexOf(tagId) !== -1) return res.status(400).send();
+
+    const player = await Player.findById(tagId);
+    if (!player) return res.status(404).send();
+
+    user.following.push(tagId);
+    await user.save();
+    return res.status(200).send();
+  }
+
+  public async unfollowPlayerId(req: Request, res: Response): Promise<Response> {
+    const { tagId } = req.params;
+    if (!req.user) return res.status(401).send();
+
+    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
+    const user = await User.findOne({
+      battletag,
+      bnetId,
+    });
+
+    if (!user || user.following.indexOf(tagId) === -1) return res.status(400).send();
+
+    user.following = user.following.filter((playerId) => playerId !== tagId);
+    await user.save();
+    return res.status(200).send();
+  }
+
+  public async isFollowing(req: Request, res: Response): Promise<Response> {
+    const { tagId } = req.params;
+    if (!req.user) return res.status(401).send();
+
+    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
+    const user = await User.findOne({
+      battletag,
+      bnetId,
+    });
+
+    if (!user || user.following.indexOf(tagId) === -1) return res.status(400).send();
+    return res.status(200).send();
+  }
 }
 
 export default new PlayerController();

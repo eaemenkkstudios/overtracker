@@ -16,7 +16,7 @@ class Validation {
 
   public playerInfo = celebrate({
     [Segments.PARAMS]: Joi.object().keys({
-      tagId: Joi.string().required(),
+      tagId: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required(),
     }),
   });
 
@@ -49,9 +49,6 @@ class Validation {
   })
 
   public sendMessageBot = celebrate({
-    [Segments.HEADERS]: Joi.object({
-      authorization: Joi.string().required(),
-    }).unknown(),
     [Segments.BODY]: Joi.object().keys({
       message: Joi.string().required(),
     }),

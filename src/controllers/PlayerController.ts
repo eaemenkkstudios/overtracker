@@ -189,7 +189,6 @@ class PlayerController {
         .skip((page - 1) * +this.maxTagsPerRole)
         .limit(+this.maxTagsPerRole)
         .sort({ [filter]: 'desc' });
-      console.log(players);
     }
 
     await Promise.all(players.map(async (player) => {

@@ -67,8 +67,13 @@ routes.get(
 );
 
 routes.get(
-  '/workshop_code',
+  '/code',
   Controllers.Scraping.getRandomWorkshopCode,
+);
+
+routes.get(
+  '/updates',
+  Controllers.Scraping.getLatestHeroesUpdate,
 );
 
 routes.get('/auth/bnet', passport.authenticate('bnet'));

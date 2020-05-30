@@ -697,10 +697,10 @@ class Overwatch {
   };
 
   /**
- * Gets the image URL of the player's rank
- * @param rank Player's SR
- * @returns Image URL
- */
+   * Gets the image URL of the player's rank
+   * @param rank Player's SR
+   * @returns Image URL
+   */
   public getRankImageURL(rank: number): string {
     const baseUrl = 'https://d1u1mce87gyfbn.cloudfront.net/game/rank-icons/rank-';
     const suffix = 'Tier.png';

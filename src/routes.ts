@@ -66,7 +66,18 @@ routes.get(
   Controllers.DialogFlow.sendMessage,
 );
 
+routes.get(
+  '/workshop_code',
+  Controllers.Scraping.getRandomWorkshopCode,
+);
+
 routes.get('/auth/bnet', passport.authenticate('bnet'));
+
+routes.get(
+  '/auth/bnet/callback',
+  passport.authenticate('bnet', { failureRedirect: '/auth/bnet' }),
+  Controllers.Session.loginWithBnet,
+);
 
 routes.get(
   '/auth/bnet/callback',

@@ -52,6 +52,13 @@ class Overwatch {
     return roleIsValid;
   }
 
+  public makeFriendlyName(str: string): string {
+    return str.toLowerCase() // Sets string to lower case
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Removes diacritics
+      .replace(/[^a-zA-Z0-9\- ]/g, '') // Removes special characters
+      .replace(' ', '-'); // Replaces space with hyphen
+  }
+
   public clearObjTypes = (
     obj: Obj,
   ): void => {
@@ -61,8 +68,8 @@ class Overwatch {
     });
   }
 
-  // Transforma uma request de informação na informação requisitada.
-  // Exemplo: player.SR.SUPPORT.CURRENT -> 2468
+  // Transforms a data request into information about the player.
+  // Example: player.SR.SUPPORT.CURRENT -> 2468
   public stringToInfo = (
     obj: Obj | string,
     time: number,
@@ -732,8 +739,7 @@ class Overwatch {
     let playerStats: PlayerStats;
     if (this.playerCache[`${tag}${platform}`]) {
       const now = new Date().getDate();
-      // 1000 * 60 * 5 = 300.000ms
-      if (now - this.playerCache[`${tag}${platform}`].time >= 300000 || forceUpdate === true) {
+      if (now - this.playerCache[`${tag}${platform}`].time >= (+(process.env.MINUTES_TO_UPDATE_PLAYER_ON_CACHE || 30) * 1000 * 60) || forceUpdate === true) {
         playerStats = await oversmash().playerStats(tag, platform);
         this.playerCache[`${tag}${platform}`].stats = playerStats;
         this.playerCache[`${tag}${platform}`].time = now;

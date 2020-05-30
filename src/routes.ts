@@ -76,6 +76,16 @@ routes.get(
   Controllers.Scraping.getLatestHeroesUpdate,
 );
 
+routes.get(
+  '/heroes/:hero',
+  Controllers.Scraping.getHeroInfo,
+);
+
+routes.get(
+  '/heroes',
+  Controllers.Scraping.getAllHeroes,
+);
+
 routes.get('/auth/bnet', passport.authenticate('bnet'));
 
 routes.get(

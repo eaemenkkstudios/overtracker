@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import cheerio from 'cheerio';
+import { HashMap } from '../utils/Utils';
+import overwatch from '../overwatch';
 
 export interface SubAbilityUpdate {
   title: string,
@@ -15,6 +17,13 @@ export interface HeroUpdate {
   hero: string,
   general: string[],
   abilities: AbilityUpdate[]
+}
+
+export interface Hero {
+  name: string,
+  role: string,
+  difficulty: number,
+  lore: string,
 }
 
 class ScrapingController {
@@ -35,6 +44,32 @@ class ScrapingController {
   }
 
   /**
+   * Gets information about a hero
+   * @returns Hero information
+   */
+  public async getHeroInfo(req: Request, res: Response): Promise<Response> {
+    const { hero } = req.params;
+    const page = await axios
+      .get(`https://playoverwatch.com/en-us/heroes/${overwatch.makeFriendlyName(hero)}/`);
+    const html = cheerio.load(page.data);
+    const currentHero = {} as Hero;
+    html('.hero-pose-name').each((_, e) => {
+      currentHero.name = e.firstChild.data as string;
+    });
+    html('.hero-detail-role-name').each((_, e) => {
+      currentHero.role = overwatch.makeFriendlyName(e.firstChild.data as string);
+    });
+    html('.hero-detail-description').each((_, e) => {
+      currentHero.lore = e.firstChild.data as string;
+    });
+    currentHero.difficulty = 3;
+    html('.star.m-empty').each(() => {
+      currentHero.difficulty -= 1;
+    });
+    return res.status(200).json(currentHero);
+  }
+
+  /**
    * Gets all heroes updates from the last month
    * @returns Heroes updates
    */
@@ -42,85 +77,110 @@ class ScrapingController {
     const page = await axios.get('https://playoverwatch.com/en-us/news/patch-notes/live/');
     const html = cheerio.load(page.data);
     const arr: HeroUpdate[] = [];
-    html('.PatchNotes-body').each((_, e) => {
-      e.children.forEach((patchNote) => {
-        patchNote.children.forEach((section) => {
-          if (section.attribs.class === 'PatchNotes-section .PatchNotes-section-hero_update') {
-            section.children.forEach((heroUpdate) => {
-              const currentUpdate: HeroUpdate = {} as HeroUpdate;
-              currentUpdate.abilities = [];
-              currentUpdate.general = [];
+    html('.PatchNotes-patch .PatchNotesHeroUpdate').each((_, heroUpdate) => {
+      const currentUpdate: HeroUpdate = {} as HeroUpdate;
+      currentUpdate.abilities = [];
+      currentUpdate.general = [];
 
-              heroUpdate.children.forEach((component) => {
-                switch (component.attribs?.class) {
-                  case 'PatchNotesHeroUpdate-header':
-                    currentUpdate.hero = component
-                      .children[1]?.children[0]?.data?.toLowerCase() as string;
-                    break;
-                  case 'PatchNotesHeroUpdate-body':
-                    component.children.forEach((list) => {
-                      switch (list.attribs?.class) {
-                        case 'PatchNotesHeroUpdate-generalUpdates':
-                          list.children[0].children.forEach((update) => {
-                            if (!update.children) return;
-                            currentUpdate.general.push(update.children[0].data as string);
-                          });
-                          break;
-                        case 'PatchNotesHeroUpdate-abilitiesList':
-                          list.children.forEach((update) => {
-                            const currentAbilityUpdate: AbilityUpdate = {} as AbilityUpdate;
-                            currentAbilityUpdate.icon = update
-                              .children[0].children[0].attribs.src;
-                            currentAbilityUpdate.title = update
-                              .children[1].children[0].children[0].data as string;
-                            currentAbilityUpdate.updates = [];
-                            let currentSubAbilityUpdate: SubAbilityUpdate = {
-                              title: '',
-                              updates: [],
-                            };
-                            update.children[1].children[1].children.forEach((subUpdate) => {
-                              if (subUpdate.type !== 'tag') return;
-                              switch (subUpdate.name) {
-                                case 'p':
-                                  currentSubAbilityUpdate.title = subUpdate
-                                    .children[0].data as string;
-                                  break;
-                                case 'ul':
-                                  subUpdate.children.forEach((listItem) => {
-                                    if (!listItem.children) return;
-                                    currentSubAbilityUpdate.updates.push(
-                                      listItem.children[0].data as string,
-                                    );
-                                  });
-                                  currentAbilityUpdate.updates.push(currentSubAbilityUpdate);
-                                  currentSubAbilityUpdate = {
-                                    title: '',
-                                    updates: [],
-                                  };
-                                  break;
-                                default:
-                                  break;
-                              }
-                            });
-                            currentUpdate.abilities.push(currentAbilityUpdate);
-                          });
-                          break;
-                        default:
-                          break;
-                      }
-                    });
-                    break;
-                  default:
-                    break;
-                }
+      currentUpdate.hero = heroUpdate
+        .firstChild // PatchNotesHeroUpdate-header
+        .lastChild // PatchNotesHeroUpdate-name
+        .firstChild // Text
+        .data?.toLowerCase() as string;
+
+      heroUpdate
+        .lastChild // PatchNotesHeroUpdate-body
+        .children // PatchNotesHeroUpdate-abilitiesList
+        .forEach((list) => {
+          switch (list.attribs?.class) {
+            case 'PatchNotesHeroUpdate-generalUpdates':
+              list
+                .firstChild // <ul>
+                .children // <li>
+                .forEach((update) => {
+                  if (!update.children) return;
+                  currentUpdate.general.push(update.children[0].data as string);
+                });
+              break;
+            case 'PatchNotesHeroUpdate-abilitiesList':
+              list.children.forEach((update) => {
+                const currentAbilityUpdate = {} as AbilityUpdate;
+                currentAbilityUpdate.icon = update
+                  .firstChild // PatchNotesAbilityUpdate
+                  .firstChild // PatchNotesAbilityUpdate-icon-container
+                  .attribs.src;
+                currentAbilityUpdate.title = update
+                  .lastChild // PatchNotesAbilityUpdate-text
+                  .firstChild // PatchNotesAbilityUpdate-name
+                  .firstChild // Text
+                  .data as string;
+                currentAbilityUpdate.updates = [];
+                let currentSubAbilityUpdate: SubAbilityUpdate = {
+                  title: '',
+                  updates: [],
+                };
+                update
+                  .lastChild // PatchNotesAbilityUpdate-text
+                  .lastChild // PatchNotesAbilityUpdate-detailList
+                  .children // <ul>
+                  .forEach((subUpdate) => {
+                    if (subUpdate.type !== 'tag') return;
+                    switch (subUpdate.name) {
+                      case 'p':
+                        currentSubAbilityUpdate.title = subUpdate
+                          .firstChild.data as string;
+                        break;
+                      case 'ul':
+                        subUpdate.children.forEach((listItem) => {
+                          if (!listItem.children) return;
+                          currentSubAbilityUpdate.updates.push(
+                                      listItem.firstChild.data as string,
+                          );
+                        });
+                        currentAbilityUpdate.updates.push(currentSubAbilityUpdate);
+                        currentSubAbilityUpdate = {
+                          title: '',
+                          updates: [],
+                        };
+                        break;
+                      default:
+                        break;
+                    }
+                  });
+                currentUpdate.abilities.push(currentAbilityUpdate);
               });
-              if (currentUpdate.hero) arr.push(currentUpdate);
-            });
+              break;
+            default:
+              break;
           }
         });
-      });
+      if (currentUpdate.hero) arr.push(currentUpdate);
     });
     return res.status(200).json(arr);
+  }
+
+  /**
+   * Gets every hero and their class
+   * @returns Heroes list
+   */
+  public async getAllHeroes(req: Request, res: Response): Promise<Response> {
+    const page = await axios.get('https://playoverwatch.com/en-us/heroes');
+    const html = cheerio.load(page.data);
+    const hashmap: HashMap<string> = {};
+    html('.heroes-index.hero-selector .hero-portrait-detailed').each((_, e) => {
+      hashmap[`${overwatch.makeFriendlyName(e
+        .lastChild // <span class="container">
+        .lastChild // <span class="portrait-title">
+        .firstChild // Text
+        .data as string)
+      }`] = overwatch.makeFriendlyName(e
+        .lastChild // <span class="container">
+        .firstChild // <span class="icon">
+        .firstChild // <svg class="icon">
+        .firstChild // SVG
+        .attribs.href.split('#')[1] as string);
+    });
+    return res.status(200).json(hashmap);
   }
 }
 

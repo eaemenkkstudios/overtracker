@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import cheerio from 'cheerio';
-import { HashMap } from '../utils/Utils';
 import overwatch from '../overwatch';
 
 export interface SubAbilityUpdate {
@@ -18,13 +17,17 @@ export interface HeroUpdate {
   general: string[],
   abilities: AbilityUpdate[]
 }
+export interface HeroInfo {
+  name: string;
+  role: string;
+  img?: string;
+}
 
-export interface Hero {
-  name: string,
-  role: string,
+export interface Hero extends HeroInfo {
   difficulty: number,
   lore: string,
 }
+
 
 class ScrapingController {
   /**
@@ -166,21 +169,25 @@ class ScrapingController {
   public async getAllHeroes(req: Request, res: Response): Promise<Response> {
     const page = await axios.get('https://playoverwatch.com/en-us/heroes');
     const html = cheerio.load(page.data);
-    const hashmap: HashMap<string> = {};
+    const heroes: HeroInfo[] = [];
     html('.heroes-index.hero-selector .hero-portrait-detailed').each((_, e) => {
-      hashmap[`${overwatch.makeFriendlyName(e
+      const name = overwatch.makeFriendlyName(e
         .lastChild // <span class="container">
         .lastChild // <span class="portrait-title">
         .firstChild // Text
-        .data as string)
-      }`] = overwatch.makeFriendlyName(e
-        .lastChild // <span class="container">
-        .firstChild // <span class="icon">
-        .firstChild // <svg class="icon">
-        .firstChild // SVG
-        .attribs.href.split('#')[1] as string);
+        .data as string);
+      heroes.push({
+        name,
+        role: overwatch.makeFriendlyName(e
+          .lastChild // <span class="container">
+          .firstChild // <span class="icon">
+          .firstChild // <svg class="icon">
+          .firstChild // SVG
+          .attribs.href.split('#')[1] as string),
+        img: `https://d1u1mce87gyfbn.cloudfront.net/hero/${name}/hero-select-portrait.png`,
+      });
     });
-    return res.status(200).json(hashmap);
+    return res.status(200).json(heroes);
   }
 }
 

@@ -67,7 +67,7 @@ routes.get(
 );
 
 routes.get(
-  '/code',
+  '/workshop',
   Controllers.Scraping.getRandomWorkshopCode,
 );
 
@@ -86,7 +86,10 @@ routes.get(
   Controllers.Scraping.getAllHeroes,
 );
 
-routes.get('/auth/bnet', passport.authenticate('bnet'));
+routes.get(
+  '/auth/bnet',
+  passport.authenticate('bnet'),
+);
 
 routes.get(
   '/auth/bnet/callback',

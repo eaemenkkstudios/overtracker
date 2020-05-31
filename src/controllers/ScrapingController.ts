@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import cheerio from 'cheerio';
 import overwatch from '../overwatch';
 
@@ -36,7 +36,12 @@ class ScrapingController {
    * @returns Workshop code
    */
   public async getRandomWorkshopCode(req: Request, res: Response): Promise<Response> {
-    const page = await axios.get('https://workshop.codes/on-fire');
+    let page: AxiosResponse;
+    try {
+      page = await axios.get('https://workshop.codes/on-fire');
+    } catch (e) {
+      return res.status(400).send();
+    }
     const html = cheerio.load(page.data);
     const arr: string[] = [];
     html('.copy span').each((_, e) => {
@@ -53,8 +58,13 @@ class ScrapingController {
    */
   public async getHeroInfo(req: Request, res: Response): Promise<Response> {
     const { hero } = req.params;
-    const page = await axios
-      .get(`https://playoverwatch.com/en-us/heroes/${overwatch.makeFriendlyName(hero)}/`);
+    let page: AxiosResponse;
+    try {
+      page = await axios
+        .get(`https://playoverwatch.com/en-us/heroes/${overwatch.makeFriendlyName(hero)}/`);
+    } catch (e) {
+      return res.status(400).send();
+    }
     const html = cheerio.load(page.data);
     const currentHero = {} as Hero;
     html('.hero-pose-name').each((_, e) => {
@@ -79,7 +89,12 @@ class ScrapingController {
    * @returns Heroes updates
    */
   public async getLatestHeroesUpdate(req: Request, res: Response): Promise<Response> {
-    const page = await axios.get('https://playoverwatch.com/en-us/news/patch-notes/live/');
+    let page: AxiosResponse;
+    try {
+      page = await axios.get('https://playoverwatch.com/en-us/news/patch-notes/live/');
+    } catch (e) {
+      return res.status(400).send();
+    }
     const html = cheerio.load(page.data);
     const arr: HeroUpdate[] = [];
     html('.PatchNotes-patch .PatchNotesHeroUpdate').each((_, heroUpdate) => {
@@ -169,7 +184,12 @@ class ScrapingController {
    * @returns Heroes list
    */
   public async getAllHeroes(req: Request, res: Response): Promise<Response> {
-    const page = await axios.get('https://playoverwatch.com/en-us/heroes');
+    let page: AxiosResponse;
+    try {
+      page = await axios.get('https://playoverwatch.com/en-us/heroes');
+    } catch (e) {
+      return res.status(400).send();
+    }
     const html = cheerio.load(page.data);
     const heroes: HeroInfo[] = [];
     html('.heroes-index.hero-selector .hero-portrait-detailed').each((_, e) => {

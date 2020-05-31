@@ -58,7 +58,6 @@ class App {
   }
 
   private routes(): void {
-    this.express.use('/images', express.static(path.resolve(__dirname, '..', 'uploads')));
     this.express.use(routes);
     this.express.use(errors());
   }

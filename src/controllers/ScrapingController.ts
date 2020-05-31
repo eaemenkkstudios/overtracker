@@ -19,6 +19,7 @@ export interface HeroUpdate {
 }
 export interface HeroInfo {
   name: string;
+  friendlyName: string;
   role: string;
   img?: string;
 }
@@ -57,7 +58,7 @@ class ScrapingController {
     const html = cheerio.load(page.data);
     const currentHero = {} as Hero;
     html('.hero-pose-name').each((_, e) => {
-      currentHero.name = e.firstChild.data as string;
+      currentHero.friendlyName = e.firstChild.data as string;
     });
     html('.hero-detail-role-name').each((_, e) => {
       currentHero.role = overwatch.makeFriendlyName(e.firstChild.data as string);
@@ -69,6 +70,7 @@ class ScrapingController {
     html('.star.m-empty').each(() => {
       currentHero.difficulty -= 1;
     });
+    currentHero.name = hero;
     return res.status(200).json(currentHero);
   }
 
@@ -171,13 +173,15 @@ class ScrapingController {
     const html = cheerio.load(page.data);
     const heroes: HeroInfo[] = [];
     html('.heroes-index.hero-selector .hero-portrait-detailed').each((_, e) => {
-      const name = overwatch.makeFriendlyName(e
+      const friendlyName = e
         .lastChild // <span class="container">
         .lastChild // <span class="portrait-title">
         .firstChild // Text
-        .data as string);
+        .data as string;
+      const name = overwatch.makeFriendlyName(friendlyName);
       heroes.push({
         name,
+        friendlyName,
         role: overwatch.makeFriendlyName(e
           .lastChild // <span class="container">
           .firstChild // <span class="icon">

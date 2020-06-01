@@ -59,7 +59,7 @@ routes.get(
   Controllers.Player.getLocalFeed,
 );
 
-routes.get(
+routes.post(
   '/dialogflow',
   Validation.validateSession,
   Validation.sendMessageBot,

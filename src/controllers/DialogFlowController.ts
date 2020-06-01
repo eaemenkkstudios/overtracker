@@ -34,7 +34,10 @@ class DialogFlowController {
         },
       },
     });
-    return res.json(response);
+    return res.json({
+      message: response[0].queryResult?.fulfillmentText,
+      date: new Date().getTime(),
+    });
   }
 }
 

@@ -38,9 +38,9 @@ class SessionController {
         done: (a: unknown, b: unknown) => unknown,
       ) => {
         if (!profile.battletag) return done(null, false);
-        let user = await User.findOne({ battletag: profile.battletag, bnetId: profile.id });
+        let user = await User.findOne({ battletag: profile.battletag });
         if (!user) {
-          user = await User.create({ battletag: profile.battletag, bnetId: profile.id });
+          user = await User.create({ battletag: profile.battletag });
         }
         const player = await Player.findOne({ tag: profile.battletag });
         if (!player) {
@@ -55,7 +55,6 @@ class SessionController {
         }
         return done(null, {
           battletag: profile.battletag,
-          bnetId: profile.id,
           token: acessToken,
         });
       }),

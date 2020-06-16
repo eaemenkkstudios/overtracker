@@ -439,11 +439,8 @@ class PlayerController {
   public getLocalFeed = async (req: Request, res: Response): Promise<Response> => {
     const { page = 1, time = 1 } = req.query;
     if (!req.session || !req.user) return res.status(401).send();
-    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
-    const user = await User.findOne({
-      battletag,
-      bnetId,
-    }).populate({
+    const { battletag } = req.user as { battletag: string };
+    const user = await User.findOne({ battletag }).populate({
       path: 'following',
       options: {
         limit: +this.maxTagsPerRole,
@@ -487,11 +484,8 @@ class PlayerController {
    */
   public async getFollowing(req: Request, res: Response): Promise<Response> {
     if (!req.session || !req.user) return res.status(401).send();
-    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
-    const user = await User.findOne({
-      battletag,
-      bnetId,
-    }).populate('following');
+    const { battletag } = req.user as { battletag: string };
+    const user = await User.findOne({ battletag }).populate('following');
     if (!user) return res.status(401).send();
     const players: FollowedPlayer[] = [];
     (user.following as PlayerProps[]).forEach((player) => {
@@ -583,12 +577,9 @@ class PlayerController {
   public followPlayer = async (req: Request, res: Response): Promise<Response | void> => {
     const { tag, platform } = req.body;
     if (!req.session || !req.user) return res.status(401).send();
-    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
+    const { battletag } = req.user as { battletag: string };
 
-    const user = await User.findOne({
-      battletag,
-      bnetId,
-    });
+    const user = await User.findOne({ battletag });
     if (!user) return res.status(400).send();
 
     const player = await Player.findOne({ tag, platform });
@@ -611,11 +602,8 @@ class PlayerController {
     const { tagId } = req.params;
     if (!req.user) return res.status(401).send();
 
-    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
-    const user = await User.findOne({
-      battletag,
-      bnetId,
-    });
+    const { battletag } = req.user as { battletag: string };
+    const user = await User.findOne({ battletag });
 
     if (!user || user.following.indexOf(tagId) !== -1) return res.status(400).send();
 
@@ -631,11 +619,8 @@ class PlayerController {
     const { tagId } = req.params;
     if (!req.user) return res.status(401).send();
 
-    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
-    const user = await User.findOne({
-      battletag,
-      bnetId,
-    });
+    const { battletag } = req.user as { battletag: string };
+    const user = await User.findOne({ battletag });
 
     if (!user || user.following.indexOf(tagId) === -1) return res.status(400).send();
 
@@ -648,11 +633,8 @@ class PlayerController {
     const { tagId } = req.params;
     if (!req.user) return res.status(401).send();
 
-    const { battletag, bnetId } = req.user as { battletag: string, bnetId: number };
-    const user = await User.findOne({
-      battletag,
-      bnetId,
-    });
+    const { battletag } = req.user as { battletag: string };
+    const user = await User.findOne({ battletag });
 
     if (!user || user.following.indexOf(tagId) === -1) return res.status(400).send();
     return res.status(200).send();

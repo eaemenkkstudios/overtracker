@@ -1,6 +1,16 @@
 import { Request, Response } from 'express';
 import { SessionsClient, v2 } from '@google-cloud/dialogflow';
 
+interface QueryResult {
+  intent: {
+    name: string;
+    displayName: string;
+  }
+  parameters: {
+    [key: string]: string | number | boolean;
+  }
+}
+
 class DialogFlowController {
   private projectId: string;
 
@@ -41,7 +51,7 @@ class DialogFlowController {
   }
 
   public async webhook(req: Request, res: Response): Promise<Response> {
-    console.log(req.body);
+    const { intent, parameters }: QueryResult = req.body.queryResult;
     return res.json({
       fulfillmentText: 'Teste',
       source: 'webhook',

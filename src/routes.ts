@@ -103,9 +103,9 @@ routes.get(
 );
 
 routes.get(
-  '/auth/bnet/callback',
-  passport.authenticate('bnet', { failureRedirect: '/auth/bnet' }),
-  Controllers.Session.loginWithBnet,
+  '/isauth',
+  Validation.validateSession,
+  (req, res) => res.status(200).send(),
 );
 
 export default routes;

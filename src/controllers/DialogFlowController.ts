@@ -39,6 +39,14 @@ class DialogFlowController {
       date: new Date().getTime(),
     });
   }
+
+  public async webhook(req: Request, res: Response): Promise<Response> {
+    console.log(req.body);
+    return res.json({
+      fulfillmentText: 'Teste',
+      source: 'webhook',
+    });
+  }
 }
 
 export default new DialogFlowController();

@@ -66,6 +66,11 @@ routes.post(
   Controllers.DialogFlow.sendMessage,
 );
 
+routes.post(
+  '/webhook',
+  Controllers.DialogFlow.webhook,
+);
+
 routes.get(
   '/workshop',
   Controllers.Scraping.getRandomWorkshopCode,

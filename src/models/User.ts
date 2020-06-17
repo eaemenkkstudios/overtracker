@@ -4,10 +4,12 @@ import {
 import { PlayerSchema } from './Player';
 
 export const UserSchema = createSchema({
-  battletag: Type.string({ required: true }),
+  _id: Type.string({ required: true }),
   following: Type.array({ required: true, default: [] }).of(Type.ref(Type.string()).to('Player', PlayerSchema)),
-  lat: Type.number({ default: 0.0 }),
-  lng: Type.number({ default: 0.0 }),
+  location: Type.object({ default: { lat: 0.0, lng: 0.0 } }).of({
+    lat: Type.number({ default: 0.0 }),
+    lng: Type.number({ default: 0.0 }),
+  }),
 });
 
 export default typedModel('User', UserSchema);

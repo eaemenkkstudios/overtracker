@@ -440,7 +440,7 @@ class PlayerController {
     const { page = 1, time = 1 } = req.query;
     if (!req.session || !req.user) return res.status(401).send();
     const { battletag } = req.user as { battletag: string };
-    const user = await User.findOne({ battletag }).populate({
+    const user = await User.findById(battletag).populate({
       path: 'following',
       options: {
         limit: +this.maxTagsPerRole,
@@ -485,7 +485,7 @@ class PlayerController {
   public async getFollowing(req: Request, res: Response): Promise<Response> {
     if (!req.session || !req.user) return res.status(401).send();
     const { battletag } = req.user as { battletag: string };
-    const user = await User.findOne({ battletag }).populate('following');
+    const user = await User.findById(battletag).populate('following');
     if (!user) return res.status(401).send();
     const players: FollowedPlayer[] = [];
     (user.following as PlayerProps[]).forEach((player) => {
@@ -579,7 +579,7 @@ class PlayerController {
     if (!req.session || !req.user) return res.status(401).send();
     const { battletag } = req.user as { battletag: string };
 
-    const user = await User.findOne({ battletag });
+    const user = await User.findById(battletag);
     if (!user) return res.status(400).send();
 
     const player = await Player.findOne({ tag, platform });
@@ -603,7 +603,7 @@ class PlayerController {
     if (!req.user) return res.status(401).send();
 
     const { battletag } = req.user as { battletag: string };
-    const user = await User.findOne({ battletag });
+    const user = await User.findById(battletag);
 
     if (!user || user.following.indexOf(tagId) !== -1) return res.status(400).send();
 
@@ -620,7 +620,7 @@ class PlayerController {
     if (!req.user) return res.status(401).send();
 
     const { battletag } = req.user as { battletag: string };
-    const user = await User.findOne({ battletag });
+    const user = await User.findById(battletag);
 
     if (!user || user.following.indexOf(tagId) === -1) return res.status(400).send();
 
@@ -634,7 +634,7 @@ class PlayerController {
     if (!req.user) return res.status(401).send();
 
     const { battletag } = req.user as { battletag: string };
-    const user = await User.findOne({ battletag });
+    const user = await User.findById(battletag);
 
     if (!user || user.following.indexOf(tagId) === -1) return res.status(400).send();
     return res.status(200).send();

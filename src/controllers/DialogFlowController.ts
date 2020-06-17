@@ -70,10 +70,16 @@ class DialogFlowController {
           }
         });
       }
-    } else if (intent.displayName === 'workshop') {
+    } else if (intent.displayName === 'workshop'
+      || intent.displayName === 'workshop next') {
       const code = await ScrapingController.getRandomWorkshopCodeScraping();
       if (code) {
-        response = `Here you go! ${code.name} - ${code.code}.`;
+        if (intent.displayName === 'workshop next') {
+          const responses = ['Another one!', 'A man of culture, I see.', 'You\'re definitely picky!', 'Have fun!'];
+          response = `${responses[Math.floor(Math.random() * responses.length)]} ${code.name} - ${code.code}.`;
+        } else {
+          response = `Here you go! ${code.name} - ${code.code}.`;
+        }
       }
     } else if (intent.displayName === 'updates') {
       const updates = await ScrapingController.getLatestHeroesUpdateScraping();
@@ -82,20 +88,25 @@ class DialogFlowController {
       }
       if (updates) {
         updates.forEach((update) => {
-          response = response.concat(`\t${update.hero}:\n`);
+          response = response.concat(`## ${update.hero.toUpperCase()}:\n`);
 
           if (update.general.length > 0) {
             update.general.forEach((generalUpdate) => {
-              response = response.concat(`\t\t${generalUpdate};\n`);
+              response = response.concat(` ### ${generalUpdate};\n`);
             });
           }
 
           update.abilities.forEach((ability) => {
-            response = response.concat(`\t\t${ability.title}:\n`);
+            response = response.concat(` ### ![](${ability.icon})\t\t${ability.title}\n`);
             ability.updates.forEach((abilityUpdate) => {
-              response = response.concat(`\t\t\t${abilityUpdate.title}:\n`);
+              if (abilityUpdate.title
+                && abilityUpdate.title.trim().length > 0) {
+                response = response.concat(` - ${abilityUpdate.title}:\n`);
+              } else {
+                response = response.concat(' - General:\n');
+              }
               abilityUpdate.updates.forEach((subUpdate) => {
-                response = response.concat(`\t\t\t\t${subUpdate};\n`);
+                response = response.concat(`    - ${subUpdate};\n`);
               });
             });
           });

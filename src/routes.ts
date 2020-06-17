@@ -108,4 +108,10 @@ routes.get(
   (req, res) => res.status(200).send(),
 );
 
+routes.post(
+  '/location',
+  Validation.validateSession,
+  Controllers.User.updateLocation,
+);
+
 export default routes;

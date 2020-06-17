@@ -87,6 +87,10 @@ routes.get(
 );
 
 routes.get(
+  '/heroes/:hero/region',
+  Controllers.User.getMostPlayedRegion,
+);
+routes.get(
   '/heroes',
   Controllers.Scraping.getAllHeroes,
 );
@@ -113,5 +117,16 @@ routes.post(
   Validation.validateSession,
   Controllers.User.updateLocation,
 );
+
+routes.get(
+  '/mains',
+  Controllers.User.getMainsPerRegion,
+);
+
+
+// routes.get(
+//   '/dummy',
+//   Controllers.User.makeDummyLocations,
+// );
 
 export default routes;

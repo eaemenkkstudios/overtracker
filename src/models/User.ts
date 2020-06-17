@@ -6,9 +6,9 @@ import { PlayerSchema } from './Player';
 export const UserSchema = createSchema({
   _id: Type.string({ required: true }),
   following: Type.array({ required: true, default: [] }).of(Type.ref(Type.string()).to('Player', PlayerSchema)),
-  location: Type.object({ default: { lat: 0.0, lng: 0.0 } }).of({
-    lat: Type.number({ default: 0.0 }),
-    lng: Type.number({ default: 0.0 }),
+  location: Type.object().of({
+    lat: Type.number(),
+    lng: Type.number(),
   }),
 });
 

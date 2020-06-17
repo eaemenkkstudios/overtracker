@@ -29,27 +29,77 @@ export interface Hero extends HeroInfo {
   lore: string,
 }
 
+export interface CodeInfo {
+  name: string;
+  code: string;
+}
 
 class ScrapingController {
   /**
-   * Gets random Overwatch workshop code
+   * Gets random Overwatch workshop code (does the scraping)
    * @returns Workshop code
    */
-  public async getRandomWorkshopCode(req: Request, res: Response): Promise<Response> {
+  public async getRandomWorkshopCodeScraping(): Promise<CodeInfo | undefined> {
     let page: AxiosResponse;
     try {
       page = await axios.get('https://workshop.codes/on-fire');
     } catch (e) {
-      return res.status(400).send();
+      return undefined;
     }
+
+    const arr: CodeInfo[] = [];
+
     const html = cheerio.load(page.data);
-    const arr: string[] = [];
-    html('.copy span').each((_, e) => {
-      arr.push(e.attribs['data-copy']);
+    html('article.item').each((_, e) => {
+      const code = {} as CodeInfo;
+      e.children.forEach((info) => {
+        switch (info.attribs?.class) {
+          case 'item__title':
+            info.children.forEach((child) => {
+              // <a>
+              if (child.tagName === 'a'
+                && child.children.length === 1) {
+                code.name = (child
+                  .firstChild // Text
+                  .data as string).trim();
+              }
+            });
+            break;
+          case 'item__code':
+            info.children.forEach((child) => {
+              // <span class="copy">
+              if (child.tagName === 'span') {
+                child.children.forEach((subChild) => {
+                  // <span>
+                  if (subChild.tagName === 'span') {
+                    code.code = subChild
+                      .firstChild // Text
+                      .data as string;
+                  }
+                });
+              }
+            });
+            break;
+          default:
+            break;
+        }
+      });
+      arr.push(code);
     });
-    if (arr.length <= 0) return res.status(503).send();
+    if (arr.length <= 0) return undefined;
+    // console.log(arr);
     const index = Math.floor(Math.random() * arr.length);
-    return res.status(200).json({ code: arr[index] });
+    return arr[index];
+  }
+
+  /**
+   * Gets random Overwatch workshop code
+   * @returns Workshop code
+   */
+  public getRandomWorkshopCode = async (req: Request, res: Response): Promise<Response> => {
+    const code = await this.getAllHeroesScraping();
+    if (code) return res.status(200).json({ code });
+    return res.status(400).send();
   }
 
   /**
@@ -84,16 +134,17 @@ class ScrapingController {
     return res.status(200).json(currentHero);
   }
 
+
   /**
-   * Gets all heroes updates from the last month
+   * Gets all heroes updates from the last month (does the scraping)
    * @returns Heroes updates
    */
-  public async getLatestHeroesUpdate(req: Request, res: Response): Promise<Response> {
+  public async getLatestHeroesUpdateScraping(): Promise<HeroUpdate[] | undefined> {
     let page: AxiosResponse;
     try {
       page = await axios.get('https://playoverwatch.com/en-us/news/patch-notes/live/');
     } catch (e) {
-      return res.status(400).send();
+      return undefined;
     }
     const html = cheerio.load(page.data);
     const arr: HeroUpdate[] = [];
@@ -154,7 +205,7 @@ class ScrapingController {
                         subUpdate.children.forEach((listItem) => {
                           if (!listItem.children) return;
                           currentSubAbilityUpdate.updates.push(
-                                      listItem.firstChild.data as string,
+                              listItem.firstChild.data as string,
                           );
                         });
                         currentAbilityUpdate.updates.push(currentSubAbilityUpdate);
@@ -176,19 +227,29 @@ class ScrapingController {
         });
       if (currentUpdate.hero) arr.push(currentUpdate);
     });
-    return res.status(200).json(arr);
+    return arr;
   }
 
   /**
-   * Gets every hero and their class
+   * Gets all heroes updates from the last month
+   * @returns Heroes updates
+   */
+  public getLatestHeroesUpdate = async (req: Request, res: Response): Promise<Response> => {
+    const updates = await this.getLatestHeroesUpdateScraping();
+    if (updates) return res.status(200).json(updates);
+    return res.status(400).send();
+  }
+
+  /**
+   * Gets every hero and their class (does the scraping)
    * @returns Heroes list
    */
-  public async getAllHeroes(req: Request, res: Response): Promise<Response> {
+  public async getAllHeroesScraping(): Promise<HeroInfo[] | undefined> {
     let page: AxiosResponse;
     try {
       page = await axios.get('https://playoverwatch.com/en-us/heroes');
     } catch (e) {
-      return res.status(400).send();
+      return undefined;
     }
     const html = cheerio.load(page.data);
     const heroes: HeroInfo[] = [];
@@ -211,8 +272,17 @@ class ScrapingController {
         img: `https://d1u1mce87gyfbn.cloudfront.net/hero/${name}/hero-select-portrait.png`,
       });
     });
-    return res.status(200).json(heroes);
+    return heroes;
+  }
+
+  /**
+   * Gets every hero and their class
+   * @returns Heroes list
+   */
+  public getAllHeroes = async (req: Request, res: Response): Promise<Response> => {
+    const heroes = await this.getAllHeroesScraping();
+    if (heroes) return res.status(200).json(heroes);
+    return res.status(400).send();
   }
 }
-
 export default new ScrapingController();

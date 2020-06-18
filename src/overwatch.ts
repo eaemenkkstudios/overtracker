@@ -52,7 +52,7 @@ class Overwatch {
     return roleIsValid;
   }
 
-  public makeRawName(str: string): string {
+  public makeNormalizedName(str: string): string {
     return str.toLowerCase() // Sets string to lower case
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Removes diacritics
       .replace(/[^a-zA-Z0-9\- ]/g, '') // Removes special characters

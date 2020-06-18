@@ -117,10 +117,10 @@ class ScrapingController {
     const html = cheerio.load(page.data);
     const currentHero = {} as Hero;
     html('.hero-pose-name').each((_, e) => {
-      currentHero.name = e.firstChild.data as string;
+      currentHero.raw_name = e.firstChild.data as string;
     });
     html('.hero-detail-role-name').each((_, e) => {
-      currentHero.role = overwatch.makeRawName(e.firstChild.data as string);
+      currentHero.role = overwatch.makeNormalizedName(e.firstChild.data as string);
     });
     html('.hero-detail-description').each((_, e) => {
       currentHero.lore = e.firstChild.data as string;
@@ -129,7 +129,7 @@ class ScrapingController {
     html('.star.m-empty').each(() => {
       currentHero.difficulty -= 1;
     });
-    currentHero.raw_name = hero;
+    currentHero.name = hero;
     return res.status(200).json(currentHero);
   }
 
@@ -253,22 +253,22 @@ class ScrapingController {
     const html = cheerio.load(page.data);
     const heroes: HeroInfo[] = [];
     html('.heroes-index.hero-selector .hero-portrait-detailed').each((_, e) => {
-      const name = e
+      const raw_name = e
         .lastChild // <span class="container">
         .lastChild // <span class="portrait-title">
         .firstChild // Text
         .data as string;
-      const raw_name = overwatch.makeRawName(name);
+      const name = overwatch.makeNormalizedName(raw_name);
       heroes.push({
         raw_name,
         name,
-        role: overwatch.makeRawName(e
+        role: overwatch.makeNormalizedName(e
           .lastChild // <span class="container">
           .firstChild // <span class="icon">
           .firstChild // <svg class="icon">
           .firstChild // SVG
           .attribs.href.split('#')[1] as string),
-        img: `https://d1u1mce87gyfbn.cloudfront.net/hero/${raw_name}/hero-select-portrait.png`,
+        img: `https://d1u1mce87gyfbn.cloudfront.net/hero/${name}/hero-select-portrait.png`,
       });
     });
     return heroes;

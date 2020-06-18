@@ -18,8 +18,8 @@ export interface HeroUpdate {
   abilities: AbilityUpdate[]
 }
 export interface HeroInfo {
+  raw_name: string;
   name: string;
-  friendlyName: string;
   role: string;
   img?: string;
 }
@@ -87,7 +87,6 @@ class ScrapingController {
       arr.push(code);
     });
     if (arr.length <= 0) return undefined;
-    // console.log(arr);
     const index = Math.floor(Math.random() * arr.length);
     return arr[index];
   }
@@ -111,17 +110,17 @@ class ScrapingController {
     let page: AxiosResponse;
     try {
       page = await axios
-        .get(`https://playoverwatch.com/en-us/heroes/${overwatch.makeFriendlyName(hero)}/`);
+        .get(`https://playoverwatch.com/en-us/heroes/${hero}/`);
     } catch (e) {
       return res.status(400).send();
     }
     const html = cheerio.load(page.data);
     const currentHero = {} as Hero;
     html('.hero-pose-name').each((_, e) => {
-      currentHero.friendlyName = e.firstChild.data as string;
+      currentHero.name = e.firstChild.data as string;
     });
     html('.hero-detail-role-name').each((_, e) => {
-      currentHero.role = overwatch.makeFriendlyName(e.firstChild.data as string);
+      currentHero.role = overwatch.makeRawName(e.firstChild.data as string);
     });
     html('.hero-detail-description').each((_, e) => {
       currentHero.lore = e.firstChild.data as string;
@@ -130,7 +129,7 @@ class ScrapingController {
     html('.star.m-empty').each(() => {
       currentHero.difficulty -= 1;
     });
-    currentHero.name = hero;
+    currentHero.raw_name = hero;
     return res.status(200).json(currentHero);
   }
 
@@ -254,22 +253,22 @@ class ScrapingController {
     const html = cheerio.load(page.data);
     const heroes: HeroInfo[] = [];
     html('.heroes-index.hero-selector .hero-portrait-detailed').each((_, e) => {
-      const friendlyName = e
+      const name = e
         .lastChild // <span class="container">
         .lastChild // <span class="portrait-title">
         .firstChild // Text
         .data as string;
-      const name = overwatch.makeFriendlyName(friendlyName);
+      const raw_name = overwatch.makeRawName(name);
       heroes.push({
+        raw_name,
         name,
-        friendlyName,
-        role: overwatch.makeFriendlyName(e
+        role: overwatch.makeRawName(e
           .lastChild // <span class="container">
           .firstChild // <span class="icon">
           .firstChild // <svg class="icon">
           .firstChild // SVG
           .attribs.href.split('#')[1] as string),
-        img: `https://d1u1mce87gyfbn.cloudfront.net/hero/${name}/hero-select-portrait.png`,
+        img: `https://d1u1mce87gyfbn.cloudfront.net/hero/${raw_name}/hero-select-portrait.png`,
       });
     });
     return heroes;

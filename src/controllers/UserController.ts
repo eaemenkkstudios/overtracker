@@ -51,13 +51,15 @@ class UserController {
   public getMostPlayedRegion = async (req: Request, res: Response): Promise<Response> => {
     const { hero } = req.params;
 
+    const friendlyName = hero.replace('-', '');
+
     const cache = await this.getMainsPerRegionCache();
     if (!cache) return res.status(400).send();
 
     const playersPerRegion = {} as HashMap<number>;
 
     Object.keys(cache).forEach((region) => {
-      if (cache[region][hero]) playersPerRegion[region] = cache[region][hero];
+      if (cache[region][friendlyName]) playersPerRegion[region] = cache[region][friendlyName];
     });
 
     const region = Object.keys(playersPerRegion)[Object.values(playersPerRegion)

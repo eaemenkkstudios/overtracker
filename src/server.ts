@@ -2,6 +2,7 @@ import 'dotenv/config';
 import app from './app';
 import PlayerController from './controllers/PlayerController';
 
+
 async function updateOutdatedPlayers(): Promise<void> {
   const outdatedPlayers = await PlayerController.getOutdatedPlayers();
   outdatedPlayers.forEach((player) => PlayerController.updatePlayer(player.tag, player.platform));

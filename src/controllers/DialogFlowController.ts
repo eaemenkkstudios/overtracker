@@ -62,11 +62,11 @@ class DialogFlowController {
         response = `Currently, there are ${heroes.length} heroes in Overwatch! They are: `;
         heroes.forEach((e, i) => {
           if (i + 2 < heroes.length) {
-            response = response.concat(`${e.friendlyName}, `);
+            response = response.concat(`${e.raw_name}, `);
           } else if (i + 2 === heroes.length) {
-            response = response.concat(`${e.friendlyName} and `);
+            response = response.concat(`${e.raw_name} and `);
           } else {
-            response = response.concat(`${e.friendlyName}.`);
+            response = response.concat(`${e.raw_name}.`);
           }
         });
       }
